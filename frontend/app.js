@@ -1,0 +1,449 @@
+"use strict";
+
+const API_URL = "http://127.0.0.1:8000";
+
+const resumeFile = document.getElementById("resumeFile");
+const fileName = document.getElementById("fileName");
+const analyzeBtn = document.getElementById("analyzeBtn");
+
+const loading = document.getElementById("loading");
+const errorBox = document.getElementById("error");
+const results = document.getElementById("results");
+
+const resultFile = document.getElementById("resultFile");
+const atsScore = document.getElementById("atsScore");
+const rating = document.getElementById("rating");
+
+const skills = document.getElementById("skills");
+const skillCount = document.getElementById("skillCount");
+
+const email = document.getElementById("email");
+const phone = document.getElementById("phone");
+
+const education = document.getElementById("education");
+const experience = document.getElementById("experience");
+
+const breakdown = document.getElementById("breakdown");
+const resumeText = document.getElementById("resumeText");
+const wordCount = document.getElementById("wordCount");
+const suggestionsContainer =
+    document.getElementById("suggestions");
+
+const suggestionPriority =
+    document.getElementById("suggestionPriority");
+
+/* =========================================================
+   FILE SELECTION
+   ========================================================= */
+
+resumeFile.addEventListener("change", () => {
+
+    const file = resumeFile.files[0];
+
+    hideError();
+
+    if (!file) {
+        fileName.textContent = "";
+        analyzeBtn.disabled = true;
+        return;
+    }
+
+    if (file.type !== "application/pdf") {
+        showError("Please select a valid PDF resume.");
+        resumeFile.value = "";
+        fileName.textContent = "";
+        analyzeBtn.disabled = true;
+        return;
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+        showError("PDF size must be less than 10 MB.");
+        resumeFile.value = "";
+        fileName.textContent = "";
+        analyzeBtn.disabled = true;
+        return;
+    }
+
+    fileName.textContent = file.name;
+    analyzeBtn.disabled = false;
+
+    results.classList.add("hidden");
+});
+
+
+/* =========================================================
+   ANALYZE BUTTON
+   ========================================================= */
+
+analyzeBtn.addEventListener("click", analyzeResume);
+
+
+async function analyzeResume() {
+
+    const file = resumeFile.files[0];
+
+    if (!file) {
+        showError("Please select a PDF resume first.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setLoading(true);
+    hideError();
+    results.classList.add("hidden");
+
+    try {
+
+        const response = await fetch(
+            `${API_URL}/analyze-resume`,
+            {
+                method: "POST",
+                body: formData
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail || "Resume analysis failed."
+            );
+        }
+
+        displayResults(data);
+
+    } catch (error) {
+
+        console.error("Analysis Error:", error);
+
+        showError(
+            error.message ||
+            "Unable to connect to the Resume Analyzer API."
+        );
+
+    } finally {
+
+        setLoading(false);
+    }
+}
+
+
+/* =========================================================
+   DISPLAY RESULTS
+   ========================================================= */
+
+function displayResults(data) {
+
+    const analysis = data.analysis || {};
+    const ats = data.ats_result || {};
+    const suggestionsData = data.suggestions || {};
+
+    resultFile.textContent =
+        data.filename || "-";
+
+
+    /* ATS SCORE */
+
+    const currentScore =
+        Number(ats.ats_score ?? 0);
+
+    atsScore.textContent =
+        currentScore;
+
+    const scoreCircle =
+        document.querySelector(".score-circle");
+
+    if (scoreCircle) {
+        const safeScore =
+            Math.max(0, Math.min(100, currentScore));
+
+        scoreCircle.style.setProperty(
+            "--score-deg",
+            `${safeScore * 3.6}deg`
+        );
+    }
+
+    rating.textContent =
+        ats.rating || "-";
+
+
+    /* SKILLS */
+
+    skills.innerHTML = "";
+
+    const skillList =
+        Array.isArray(analysis.skills)
+            ? analysis.skills
+            : [];
+
+    if (skillList.length === 0) {
+
+        skills.innerHTML =
+            `<span class="muted">No skills detected</span>`;
+
+    } else {
+
+        skillList.forEach(skill => {
+
+            const tag =
+                document.createElement("span");
+
+            tag.className = "tag";
+            tag.textContent = skill;
+
+            skills.appendChild(tag);
+        });
+    }
+
+    skillCount.textContent =
+        `${analysis.skill_count || 0} skill(s) detected`;
+
+
+    /* CONTACT */
+
+    email.textContent =
+        analysis.email || "Not detected";
+
+    phone.textContent =
+        analysis.phone || "Not detected";
+
+
+    /* EDUCATION */
+
+    renderTags(
+        education,
+        analysis.education_keywords,
+        "No education keywords detected"
+    );
+
+
+    /* EXPERIENCE */
+
+    renderTags(
+        experience,
+        analysis.experience_mentions,
+        "No experience mentions detected"
+    );
+
+
+    /* SCORE BREAKDOWN */
+
+    renderBreakdown(
+        ats.breakdown || {}
+    );
+renderSuggestions(
+    suggestionsContainer,
+    suggestionPriority,
+    suggestionsData
+);
+
+
+    /* RESUME TEXT */
+
+    resumeText.textContent =
+        data.extracted_text ||
+        "Text extraction successful. Full text is available from the backend.";
+
+    wordCount.textContent =
+        `${ats.word_count || 0} words`;
+
+
+    /* SHOW RESULTS */
+
+    results.classList.remove("hidden");
+
+    results.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+}
+
+
+/* =========================================================
+   TAG RENDERER
+   ========================================================= */
+function renderSuggestions(container, priorityElement, data) {
+
+    container.innerHTML = "";
+
+    priorityElement.textContent =
+        data.priority || "Review";
+
+    if (!Array.isArray(data.suggestions) ||
+        data.suggestions.length === 0) {
+
+        priorityElement.className =
+            "suggestion-priority success";
+
+        priorityElement.textContent =
+            "Excellent";
+
+        container.innerHTML = `
+            <div class="suggestion-success">
+                <span class="success-icon">✓</span>
+
+                <div>
+                    <strong>No major issues found</strong>
+                    <p>
+                        Your resume looks strong based on
+                        the current ATS analysis.
+                    </p>
+                </div>
+            </div>
+        `;
+
+        return;
+    }
+
+    priorityElement.className =
+        "suggestion-priority";
+
+    data.suggestions.forEach((suggestion, index) => {
+
+        const item =
+            document.createElement("div");
+
+        item.className = "suggestion-item";
+
+        item.innerHTML = `
+            <span class="suggestion-number">
+                ${index + 1}
+            </span>
+
+            <p>${suggestion}</p>
+        `;
+
+        container.appendChild(item);
+    });
+}
+
+function renderTags(container, items, emptyMessage) {
+    container.innerHTML = "";
+
+    if (!items || !items.length) {
+        container.innerHTML = `<span class="muted">${emptyMessage}</span>`;
+        return;
+    }
+
+    const skills = Array.isArray(items)
+        ? items
+        : String(items)
+            .split(/[,|]+/)
+            .map(item => item.trim())
+            .filter(Boolean);
+
+    skills.forEach(skill => {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = skill;
+        container.appendChild(tag);
+    });
+}
+
+
+/* =========================================================
+   SCORE BREAKDOWN
+   ========================================================= */
+
+function renderBreakdown(data) {
+
+    breakdown.innerHTML = "";
+
+    const entries =
+        Object.entries(data);
+
+    if (entries.length === 0) {
+
+        breakdown.innerHTML =
+            `<p class="muted">No score breakdown available.</p>`;
+
+        return;
+    }
+
+    entries.forEach(([key, value]) => {
+
+        const row =
+            document.createElement("div");
+
+        row.className = "breakdown-row";
+
+        const label =
+            document.createElement("span");
+
+        label.textContent =
+            formatLabel(key);
+
+        const score =
+            document.createElement("strong");
+
+        score.textContent =
+            `${value}`;
+
+        row.appendChild(label);
+        row.appendChild(score);
+
+        breakdown.appendChild(row);
+    });
+}
+
+
+/* =========================================================
+   LABEL FORMATTER
+   ========================================================= */
+
+function formatLabel(text) {
+
+    return text
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, char =>
+            char.toUpperCase()
+        );
+}
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+function setLoading(isLoading) {
+
+    if (isLoading) {
+
+        loading.classList.remove("hidden");
+
+        analyzeBtn.disabled = true;
+        analyzeBtn.textContent = "Analyzing...";
+
+    } else {
+
+        loading.classList.add("hidden");
+
+        analyzeBtn.disabled =
+            !resumeFile.files.length;
+
+        analyzeBtn.textContent =
+            "Analyze Resume";
+    }
+}
+
+
+/* =========================================================
+   ERROR HANDLING
+   ========================================================= */
+
+function showError(message) {
+
+    errorBox.textContent = message;
+    errorBox.classList.remove("hidden");
+}
+
+
+function hideError() {
+
+    errorBox.textContent = "";
+    errorBox.classList.add("hidden");
+}

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>AI Resume Analyzer</title>
+
+    <link rel="stylesheet"
+          href="style.css">
+</head>
+
+<body>
+
+    <div class="app">
+
+        <header class="header">
+            <div class="brand">
+                <div class="brand-icon">AI</div>
+
+                <div>
+                    <h1>AI Resume Analyzer</h1>
+                    <p>Smart Resume & ATS Analysis</p>
+                </div>
+            </div>
+
+            <div class="status">
+                <span class="status-dot"></span>
+                API Ready
+            </div>
+        </header>
+
+
+        <main class="container">
+
+            <section class="hero">
+                <p class="eyebrow">AI POWERED CAREER TOOL</p>
+
+                <h2>
+                    Analyze Your Resume
+                    <span>Instantly</span>
+                </h2>
+
+                <p class="hero-text">
+                    Upload your PDF resume and get an ATS score,
+                    skills analysis, education, experience and
+                    contact information.
+                </p>
+            </section>
+
+
+            <section class="upload-card">
+
+                <div class="upload-icon">
+                    ↑
+                </div>
+
+                <h3>Upload Your Resume</h3>
+
+                <p>
+                    Select a PDF file to start your analysis.
+                </p>
+
+                <label class="upload-button">
+                    Choose PDF Resume
+                    <input
+                        type="file"
+                        id="resumeFile"
+                        accept=".pdf,application/pdf"
+                        hidden
+                    >
+                </label>
+
+                <p id="fileName"
+                   class="file-name">
+                </p>
+
+                <button
+                    id="analyzeBtn"
+                    class="analyze-button"
+                    disabled>
+                    Analyze Resume
+                </button>
+
+                <div id="loading"
+                     class="loading hidden">
+
+                    <div class="spinner"></div>
+
+                    <span>
+                        Analyzing your resume...
+                    </span>
+
+                </div>
+
+                <div id="error"
+                     class="error hidden">
+                </div>
+
+            </section>
+
+
+            <section id="results"
+                     class="results hidden">
+
+                <div class="results-header">
+                    <div>
+                        <p class="eyebrow">ANALYSIS COMPLETE</p>
+
+                        <h2>
+                            Resume Analysis
+                        </h2>
+                    </div>
+
+                    <span id="resultFile"
+                          class="result-file">
+                    </span>
+                </div>
+
+
+                <div class="score-card">
+
+                    <div class="score-circle">
+                        <span id="atsScore">
+                            0
+                        </span>
+
+                        <small>/100</small>
+                    </div>
+
+                    <div class="score-info">
+                        <p>ATS SCORE</p>
+
+                        <h3 id="rating">
+                            -
+                        </h3>
+
+                        <span>
+                            Based on resume structure,
+                            skills and content
+                        </span>
+                    </div>
+
+                </div>
+
+
+                <div class="grid">
+
+                    <div class="result-card">
+                        <h3>Skills</h3>
+
+                        <div id="skills"
+                             class="tags">
+                        </div>
+
+                        <p id="skillCount"
+                           class="muted">
+                        </p>
+                    </div>
+
+
+                    <div class="result-card">
+                        <h3>Contact Information</h3>
+
+                        <div class="info-list">
+
+                            <div>
+                                <span>Email</span>
+                                <strong id="email">
+                                    -
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Phone</span>
+                                <strong id="phone">
+                                    -
+                                </strong>
+                            </div>
+
+                        </div>
+                    </div>
+
+
+                    <div class="result-card">
+                        <h3>Education</h3>
+
+                        <div id="education"
+                             class="tags">
+                        </div>
+                    </div>
+
+
+                    <div class="result-card">
+                        <h3>Experience</h3>
+
+                        <div id="experience"
+                             class="tags">
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <div class="breakdown-card">
+
+                    <h3>ATS Score Breakdown</h3>
+
+                    <div id="breakdown">
+                    </div>
+
+                </div>
+<div class="suggestions-card">
+
+    <div class="suggestions-header">
+        <div>
+            <p class="eyebrow">AI RECOMMENDATIONS</p>
+            <h3>Resume Improvement Suggestions</h3>
+        </div>
+
+        <span id="suggestionPriority"
+              class="suggestion-priority">
+        </span>
+    </div>
+
+    <div id="suggestions"
+         class="suggestions-list">
+    </div>
+
+</div>
+
+                <div class="text-card">
+
+                    <div class="text-card-header">
+                        <h3>Extracted Resume Text</h3>
+
+                        <span id="wordCount">
+                        </span>
+                    </div>
+
+                    <pre id="resumeText"></pre>
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <footer>
+            <p>
+                AI Resume Analyzer
+                <span>•</span>
+                Built with FastAPI & Python
+            </p>
+        </footer>
+
+    </div>
+
+    <script src="app.js"></script>
+
+</body>
+</html>
