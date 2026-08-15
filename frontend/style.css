@@ -1120,3 +1120,105 @@ footer span {
         transition-duration: 0.01ms !important;
     }
 }
+/* =========================================================
+   DOWNLOAD REPORT BUTTON
+   ========================================================= */
+
+.download-report-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    margin-top: 12px;
+    padding: 11px 16px;
+
+    border: 1px solid rgba(79, 140, 255, 0.35);
+    border-radius: 10px;
+
+    background: rgba(79, 140, 255, 0.10);
+    color: #dce9ff;
+
+    font-size: 12px;
+    font-weight: 800;
+
+    cursor: pointer;
+
+    transition:
+        transform 0.25s ease,
+        background 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.download-report-button:hover {
+    transform: translateY(-2px);
+
+    background: rgba(79, 140, 255, 0.20);
+
+    box-shadow:
+        0 8px 25px rgba(37, 99, 235, 0.25);
+}
+
+.download-report-button:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 700px) {
+
+    .download-report-button {
+        width: 100%;
+        margin-top: 10px;
+    }
+}
+
+/* DOWNLOAD REPORT BUTTON */
+
+.results-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.download-report-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 18px;
+    border: 1px solid rgba(79, 140, 255, 0.45);
+    border-radius: 11px;
+    background: linear-gradient(
+        135deg,
+        #4f8cff,
+        #7c3aed
+    );
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 8px 25px rgba(79, 140, 255, 0.20);
+}
+
+.download-report-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(79, 140, 255, 0.35);
+}
+
+.download-report-btn:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 700px) {
+    .results-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .download-report-btn {
+        width: 100%;
+    }
+}
+
