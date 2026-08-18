@@ -7,3 +7,20 @@ uploads/*
 !uploads/.gitkeep
 *.db
 *.sqlite3
+
+# Local development
+venv/
+.vscode/
+.DS_Store
+
+# Backup files
+*.backup
+*.backup2
+*.save
+*.before-analyze-fix
+backup_before_premium/
+
+# Python cache
+__pycache__/
+*.pyc
+

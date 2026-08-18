@@ -6,7 +6,9 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>AI Resume Analyzer</title>
+    <title>AKSH AI — AI-Powered Career Intelligence</title>
+
+    <link rel="icon" type="image/png" href="assets/aksh-ai-logo.png">
 
     <link rel="stylesheet"
           href="style.css">
@@ -18,13 +20,28 @@
 
         <header class="header">
             <div class="brand">
-                <div class="brand-icon">AI</div>
+                <img
+                    src="assets/aksh-ai-logo.png"
+                    alt="AKSH AI"
+                    class="brand-logo"
+                >
 
-                <div>
-                    <h1>AI Resume Analyzer</h1>
-                    <p>Smart Resume & ATS Analysis</p>
+                <div class="brand-text">
+                    <h1>AKSH AI</h1>
+                    <p>AI-Powered Career Intelligence</p>
                 </div>
             </div>
+
+<button class="menu-toggle" id="menuToggle" aria-label="Open menu">
+    ☰
+</button>
+
+<nav class="top-nav" id="topNav">
+    <a href="#analyzer">Analyzer</a>
+    <a href="#jobMatch">Job Match</a>
+    <a href="#results">Results</a>
+    <a href="#how-it-works">How It Works</a>
+</nav>
 
             <div class="status">
                 <span class="status-dot"></span>
@@ -33,22 +50,223 @@
         </header>
 
 
-        <main class="container">
+        <main class="container" id="analyzer">
 
-            <section class="hero">
-                <p class="eyebrow">AI POWERED CAREER TOOL</p>
+            <section class="hero aksh-hero">
+
+                <div class="hero-badge">
+                    <span class="hero-badge-dot"></span>
+                    AI-POWERED CAREER INTELLIGENCE
+                </div>
 
                 <h2>
-                    Analyze Your Resume
-                    <span>Instantly</span>
+                    Analyze Your Resume.
+                    <span>Build Your Career.</span>
                 </h2>
 
                 <p class="hero-text">
-                    Upload your PDF resume and get an ATS score,
-                    skills analysis, education, experience and
-                    contact information.
+                    Upload your resume and let AKSH AI analyze your
+                    ATS compatibility, skills, experience and job
+                    alignment in seconds.
                 </p>
+
+                <div class="hero-features">
+                    <div class="hero-feature">
+                        <strong>ATS</strong>
+                        <span>Score Analysis</span>
+                    </div>
+
+                    <div class="hero-feature">
+                        <strong>AI</strong>
+                        <span>Resume Insights</span>
+                    </div>
+
+                    <div class="hero-feature">
+                        <strong>JOB</strong>
+                        <span>Match Analysis</span>
+                    </div>
+                </div>
+
             </section>
+
+            <section class="job-match-card" id="jobMatch">
+
+    <div class="job-match-header">
+        <div>
+            <p class="eyebrow">JOB MATCHING</p>
+            <h2>Compare Resume With Job Description</h2>
+            <p>
+                Paste a job description and find out how well
+                your resume matches the role.
+            </p>
+        </div>
+    </div>
+
+    <textarea
+        id="jobDescription"
+        class="job-description"
+        placeholder="Paste the job description here...&#10;&#10;Example:&#10;We are looking for a Python Developer with SQL, FastAPI, Git and REST API experience."
+    ></textarea>
+
+    <button
+        id="jobMatchBtn"
+        class="analyze-button"
+        disabled>
+        Match Resume With Job
+    </button>
+
+    <div
+        id="jobMatchLoading"
+        class="loading hidden">
+
+        <div class="spinner"></div>
+
+        <span>
+            Comparing resume with job description...
+        </span>
+
+    </div>
+
+    <div
+        id="jobMatchError"
+        class="error hidden">
+    </div>
+
+</section>
+
+
+<section
+    id="jobMatchResults"
+    class="job-match-results hidden">
+
+    <div class="job-match-score-card">
+
+        <div class="match-score-circle">
+
+            <span id="matchScore">
+                0
+            </span>
+
+            <small>/100</small>
+
+        </div>
+
+        <div>
+
+            <p class="eyebrow">
+                JOB MATCH SCORE
+            </p>
+
+            <h2 id="matchRating">
+                -
+            </h2>
+
+            <p>
+                Based on the skills detected in your resume
+                and the selected job description.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="job-match-grid">
+
+        <div class="job-match-result-card">
+
+            <h3>Matching Skills</h3>
+
+            <div
+                id="matchingSkills"
+                class="tags">
+            </div>
+
+        </div>
+
+
+        <div class="job-match-result-card">
+
+            <h3>Missing Skills</h3>
+
+            <div
+                id="missingSkills"
+                class="tags">
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="skill-gap-card">
+
+        <div class="skill-gap-header">
+
+            <div>
+                <span class="eyebrow">AI SKILL GAP ANALYSIS</span>
+                <h3>How Ready Are You?</h3>
+                <p>
+                    See your matched skills, missing skills and
+                    overall preparation level for this role.
+                </p>
+            </div>
+
+            <div class="skill-gap-readiness">
+                <span id="skillGapPercent">0%</span>
+                <small>Readiness</small>
+            </div>
+
+        </div>
+
+
+        <div class="skill-gap-progress">
+
+            <div class="skill-gap-progress-track">
+                <span id="skillGapProgress"></span>
+            </div>
+
+        </div>
+
+
+        <div class="skill-gap-stats">
+
+            <div class="skill-gap-stat">
+                <strong id="skillGapMatched">0</strong>
+                <span>Matched Skills</span>
+            </div>
+
+            <div class="skill-gap-stat">
+                <strong id="skillGapMissing">0</strong>
+                <span>Missing Skills</span>
+            </div>
+
+            <div class="skill-gap-stat">
+                <strong id="skillGapRequired">0</strong>
+                <span>Required Skills</span>
+            </div>
+
+        </div>
+
+
+        <div class="skill-gap-message" id="skillGapMessage">
+            Analyze a job description to see your skill gap.
+        </div>
+
+    </div>
+
+
+
+    <div class="job-match-result-card recommendations-card">
+
+        <h3>Recommendations</h3>
+
+        <div id="jobRecommendations">
+        </div>
+
+    </div>
+
+</section>
 
 
             <section class="upload-card">
@@ -102,28 +320,83 @@
             </section>
 
 
+            <section id="how-it-works" class="how-it-works">
+                <div class="how-header">
+                    <p class="eyebrow">HOW IT WORKS</p>
+                    <h2>Build a Better Resume in <span>3 Simple Steps</span></h2>
+                    <p>
+                        AKSH AI analyzes your resume and gives you practical
+                        career insights in seconds.
+                    </p>
+                </div>
+
+                <div class="how-grid">
+                    <div class="how-card">
+                        <div class="how-number">01</div>
+                        <div class="how-icon">📄</div>
+                        <h3>Upload Resume</h3>
+                        <p>
+                            Upload your PDF resume and let AKSH AI extract
+                            your career information.
+                        </p>
+                    </div>
+
+                    <div class="how-card">
+                        <div class="how-number">02</div>
+                        <div class="how-icon">🤖</div>
+                        <h3>AI Analysis</h3>
+                        <p>
+                            Our analyzer checks ATS compatibility, skills,
+                            education, experience and resume structure.
+                        </p>
+                    </div>
+
+                    <div class="how-card">
+                        <div class="how-number">03</div>
+                        <div class="how-icon">🚀</div>
+                        <h3>Improve & Apply</h3>
+                        <p>
+                            Get actionable suggestions and improve your
+                            resume before applying for your next job.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+
             <section id="results"
                      class="results hidden">
 
                 <div class="results-header">
-                    <div>
-                        <p class="eyebrow">ANALYSIS COMPLETE</p>
 
-                        <h2>
-                            Resume Analysis
-                        </h2>
-                    </div>
+    <div class="results-title">
+        <p class="eyebrow">ANALYSIS COMPLETE</p>
 
-                    <span id="resultFile"
-                          class="result-file">
-                    </span>
-<button
-    id="downloadReportBtn"
-    class="download-report-btn">
-    ↓ Download Report
-</button>               
- </div>
+        <h2>Resume Analysis</h2>
 
+        <span id="resultFile" class="result-file">
+        </span>
+    </div>
+
+    <div class="results-actions">
+
+        <button
+            id="downloadReportBtn"
+            class="download-report-btn">
+            ↓ Download Report
+        </button>
+
+        <button
+    type="button"
+    id="newAnalysisBtn"
+    class="new-analysis-btn">
+    <span class="new-analysis-icon">↻</span>
+    <span>Analyze Another Resume</span>
+</button>
+
+    </div>
+
+</div>
 
                 <div class="score-card">
 
@@ -135,18 +408,19 @@
                         <small>/100</small>
                     </div>
 
-                    <div class="score-info">
-                        <p>ATS SCORE</p>
+                 <div class="score-info">
 
-                        <h3 id="rating">
-                            -
-                        </h3>
+    <p>ATS SCORE</p>
 
-                        <span>
-                            Based on resume structure,
-                            skills and content
-                        </span>
-                    </div>
+    <h3 id="rating">-</h3>
+
+    <span>
+        Your score is calculated from
+        skills, contact information,
+        education, experience and resume structure.
+    </span>
+
+</div>   
 
                 </div>
 
