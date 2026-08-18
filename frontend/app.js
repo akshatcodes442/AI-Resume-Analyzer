@@ -1858,6 +1858,28 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     });
 
+    const closeHistoryDetailBtn =
+        document.getElementById("closeHistoryDetail");
+
+    const historyDetailOverlay =
+        document.getElementById("historyDetailOverlay");
+
+    closeHistoryDetailBtn?.addEventListener(
+        "click",
+        closeHistoryDetail
+    );
+
+    historyDetailOverlay?.addEventListener(
+        "click",
+        closeHistoryDetail
+    );
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeHistoryDetail();
+        }
+    });
+
     topNav.querySelectorAll("a").forEach(link => {
         link.addEventListener("click", () => {
             topNav.classList.remove("active");
