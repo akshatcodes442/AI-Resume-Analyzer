@@ -48,5 +48,7 @@ def create_history_record(
         "suggestion_count": suggestions.get(
             "suggestion_count", 0
         ),
+        "analysis": analysis,
+        "suggestions": suggestions,
         "created_at": datetime.now().isoformat()
     }

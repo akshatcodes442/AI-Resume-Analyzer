@@ -1741,6 +1741,104 @@ function showJobMatchError(message) {
    AKSH AI — MOBILE MENU
 ================================= */
 
+
+function openHistoryDetail(item) {
+    const modal = document.getElementById("historyDetailModal");
+
+    if (!modal) return;
+
+    const score = Number(item.score ?? item.ats_score ?? 0);
+    const analysis = item.analysis || {};
+    const suggestions = item.suggestions || {};
+
+    const filename =
+        item.filename ||
+        item.file_name ||
+        "Resume Analysis";
+
+    const skills =
+        analysis.skills ||
+        analysis.detected_skills ||
+        [];
+
+    const suggestionItems =
+        suggestions.suggestions ||
+        suggestions.items ||
+        suggestions.recommendations ||
+        [];
+
+    document.getElementById("historyDetailTitle").textContent =
+        filename;
+
+    document.getElementById("historyDetailDate").textContent =
+        formatHistoryDate(item.created_at);
+
+    document.getElementById("historyDetailScore").textContent =
+        score;
+
+    document.getElementById("historyDetailRating").textContent =
+        item.rating || getHistoryRating(score);
+
+    document.getElementById("historyDetailWords").textContent =
+        item.word_count || 0;
+
+    document.getElementById("historyDetailSkills").textContent =
+        item.skill_count || skills.length || 0;
+
+    document.getElementById("historyDetailSuggestions").textContent =
+        item.suggestion_count || suggestionItems.length || 0;
+
+    const skillsList =
+        document.getElementById("historyDetailSkillsList");
+
+    if (skillsList) {
+        skillsList.innerHTML = skills.length
+            ? skills.map(skill => `
+                <span class="history-detail-tag">
+                    ${escapeHistoryHTML(skill)}
+                </span>
+            `).join("")
+            : '<span class="history-detail-muted">No skills detected.</span>';
+    }
+
+    const suggestionsList =
+        document.getElementById("historyDetailSuggestionsList");
+
+    if (suggestionsList) {
+        suggestionsList.innerHTML = suggestionItems.length
+            ? suggestionItems.map((suggestion, index) => {
+                const value =
+                    typeof suggestion === "string"
+                        ? suggestion
+                        : suggestion.text ||
+                          suggestion.message ||
+                          suggestion.description ||
+                          JSON.stringify(suggestion);
+
+                return `
+                    <div class="history-detail-suggestion">
+                        <span>${index + 1}</span>
+                        <p>${escapeHistoryHTML(value)}</p>
+                    </div>
+                `;
+            }).join("")
+            : '<div class="history-detail-muted">No suggestions available.</div>';
+    }
+
+    modal.classList.remove("hidden");
+    document.body.classList.add("history-modal-open");
+}
+
+function closeHistoryDetail() {
+    const modal =
+        document.getElementById("historyDetailModal");
+
+    if (!modal) return;
+
+    modal.classList.add("hidden");
+    document.body.classList.remove("history-modal-open");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 
     const menuToggle = document.getElementById("menuToggle");
@@ -1925,17 +2023,12 @@ function renderAKSHBreakdown(breakdown) {
     );
 }
 
-
-
-
 /* =========================================================
-   ANALYZE ANOTHER RESUME — PREMIUM RESET FLOW
+   ANALYZE ANOTHER RESUME — RESET FLOW
    ========================================================= */
 
 document.addEventListener("DOMContentLoaded", () => {
-
-    const newAnalysisBtn =
-        document.getElementById("newAnalysisBtn");
+    const newAnalysisBtn = document.getElementById("newAnalysisBtn");
 
     if (!newAnalysisBtn) {
         console.warn("newAnalysisBtn not found");
@@ -1943,176 +2036,49 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     newAnalysisBtn.addEventListener("click", (event) => {
-
         event.preventDefault();
         event.stopPropagation();
 
-        const fileInput =
-            document.getElementById("fileInput");
+        const fileInput = document.getElementById("resumeFile");
+        const fileNameEl = document.getElementById("fileName");
+        const resultsEl = document.getElementById("results");
 
-        const fileName =
-            document.getElementById("fileName");
-
-        const results =
-            document.getElementById("results");
-
-        const jobMatchResults =
-            document.getElementById("jobMatchResults");
-
-        const jobMatchError =
-            document.getElementById("jobMatchError");
-
-        const jobMatchLoading =
-            document.getElementById("jobMatchLoading");
-
-        /*
-         * Reset file input
-         */
+        // Reset file input
         if (fileInput) {
             fileInput.value = "";
         }
 
-        /*
-         * Reset filename
-         */
-        if (fileName) {
-            fileName.textContent = "";
+        // Reset selected file
+        selectedFile = null;
+
+        // Reset filename
+        if (fileNameEl) {
+            fileNameEl.textContent = "";
         }
 
-        /*
-         * Hide old analysis
-         */
-        if (results) {
-            results.classList.add("hidden");
+        // Hide previous analysis
+        if (resultsEl) {
+            resultsEl.classList.add("hidden");
         }
 
-        /*
-         * Hide Job Match
-         */
-        if (jobMatchResults) {
-            jobMatchResults.classList.add("hidden");
-        }
+        // Reset error
+        hideError();
 
-        if (jobMatchError) {
-            jobMatchError.classList.add("hidden");
-        }
-
-        if (jobMatchLoading) {
-            jobMatchLoading.classList.add("hidden");
-        }
-
-        /*
-         * Reset Job Match values
-         */
-        const matchScore =
-            document.getElementById("matchScore");
-
-        const matchRating =
-            document.getElementById("matchRating");
-
-        const matchingSkills =
-            document.getElementById("matchingSkills");
-
-        const missingSkills =
-            document.getElementById("missingSkills");
-
-        const recommendations =
-            document.getElementById("jobRecommendations");
-
-        if (matchScore) {
-            matchScore.textContent = "0";
-        }
-
-        if (matchRating) {
-            matchRating.textContent = "-";
-        }
-
-        if (matchingSkills) {
-            matchingSkills.innerHTML = "";
-        }
-
-        if (missingSkills) {
-            missingSkills.innerHTML = "";
-        }
-
-        if (recommendations) {
-            recommendations.innerHTML = "";
-        }
-
-        /*
-         * Reset Skill Gap
-         */
-        const skillGapPercent =
-            document.getElementById("skillGapPercent");
-
-        const skillGapMatched =
-            document.getElementById("skillGapMatched");
-
-        const skillGapMissing =
-            document.getElementById("skillGapMissing");
-
-        const skillGapRequired =
-            document.getElementById("skillGapRequired");
-
-        const skillGapProgress =
-            document.getElementById("skillGapProgress");
-
-        const skillGapMessage =
-            document.getElementById("skillGapMessage");
-
-        if (skillGapPercent) {
-            skillGapPercent.textContent = "0%";
-        }
-
-        if (skillGapMatched) {
-            skillGapMatched.textContent = "0";
-        }
-
-        if (skillGapMissing) {
-            skillGapMissing.textContent = "0";
-        }
-
-        if (skillGapRequired) {
-            skillGapRequired.textContent = "0";
-        }
-
-        if (skillGapProgress) {
-            skillGapProgress.style.width = "0%";
-        }
-
-        if (skillGapMessage) {
-            skillGapMessage.textContent =
-                "Analyze a job description to see your skill gap.";
-        }
-
-        /*
-         * Clear global state
-         */
-        window.latestAnalysis = null;
-        window.latestResumeText = "";
-
-        /*
-         * Reset Analyze button
-         */
-        const analyzeBtn =
-            document.getElementById("analyzeBtn");
-
+        // Reset analyze button
         if (analyzeBtn) {
-            analyzeBtn.disabled = false;
+            analyzeBtn.disabled = true;
             analyzeBtn.textContent = "Analyze Resume";
         }
 
-        /*
-         * Go back to upload card
-         */
-        const uploadCard =
-            document.querySelector(".upload-card");
+        // Clear previous analysis state
+        window.latestAnalysis = null;
+        window.latestResumeText = "";
+
+        // Scroll back to upload section
+        const uploadCard = document.querySelector(".upload-card");
 
         if (uploadCard) {
-
-            uploadCard.classList.add(
-                "new-analysis-focus"
-            );
+            uploadCard.classList.add("new-analysis-focus");
 
             uploadCard.scrollIntoView({
                 behavior: "smooth",
@@ -2120,29 +2086,160 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             setTimeout(() => {
-
-                uploadCard.classList.remove(
-                    "new-analysis-focus"
-                );
-
+                uploadCard.classList.remove("new-analysis-focus");
             }, 1200);
         }
 
-        /*
-         * Open file picker
-         */
+        // Open PDF picker
         setTimeout(() => {
-
             if (fileInput) {
                 fileInput.click();
             }
-
         }, 450);
-
     });
-
 });
 
 
+/* =========================================================
+   ANALYSIS HISTORY
+   ========================================================= */
 
+async function loadAnalysisHistory() {
+    const historyList = document.getElementById("historyList");
+    const historyLoading = document.getElementById("historyLoading");
+    const historyError = document.getElementById("historyError");
+    const historyEmpty = document.getElementById("historyEmpty");
 
+    if (!historyList) return;
+
+    historyLoading?.classList.remove("hidden");
+    historyError?.classList.add("hidden");
+    historyEmpty?.classList.add("hidden");
+    historyList.innerHTML = "";
+
+    try {
+        const response = await fetch(`${API_URL}/history`);
+
+        if (!response.ok) {
+            throw new Error("Unable to load analysis history.");
+        }
+
+        const data = await response.json();
+        const history = Array.isArray(data.history)
+            ? data.history
+            : [];
+
+        window.analysisHistory = history;
+
+        historyLoading?.classList.add("hidden");
+
+        if (history.length === 0) {
+            historyEmpty?.classList.remove("hidden");
+            return;
+        }
+
+        historyList.innerHTML = history.map((item, index) => {
+            const score = Number(item.ats_score ?? item.score ?? 0);
+            const filename =
+                item.filename ||
+                item.file_name ||
+                "Resume";
+
+            const date =
+                item.timestamp ||
+                item.created_at ||
+                item.date ||
+                "";
+
+            const ratingText =
+                item.rating ||
+                getHistoryRating(score);
+
+            return `
+                <article class="history-card">
+                    <div class="history-file">
+                        <div class="history-file-icon">PDF</div>
+
+                        <div class="history-file-info">
+                            <h3>${escapeHistoryHTML(filename)}</h3>
+                            <p>${formatHistoryDate(date)}</p>
+                        </div>
+                    </div>
+
+                    <div class="history-score">
+                        <strong>${score}</strong>
+                        <span>/100</span>
+                    </div>
+
+                    <div class="history-rating">
+                        ${escapeHistoryHTML(ratingText)}
+                    </div>
+
+                    <button
+                        type="button"
+                        class="history-view-btn"
+                        onclick="openHistoryDetail(window.analysisHistory[${index}])">
+                        View Details
+                    </button>
+                </article>
+            `;
+        }).join("");
+
+    } catch (error) {
+        console.error("History error:", error);
+
+        historyLoading?.classList.add("hidden");
+
+        if (historyError) {
+            historyError.textContent =
+                error.message || "Unable to load analysis history.";
+            historyError.classList.remove("hidden");
+        }
+    }
+}
+
+function getHistoryRating(score) {
+    if (score >= 85) return "Excellent";
+    if (score >= 70) return "Good";
+    if (score >= 50) return "Needs Improvement";
+    return "Needs Work";
+}
+
+function formatHistoryDate(value) {
+    if (!value) return "Date unavailable";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
+    }
+
+    return date.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
+function escapeHistoryHTML(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const refreshHistoryBtn =
+        document.getElementById("refreshHistoryBtn");
+
+    refreshHistoryBtn?.addEventListener(
+        "click",
+        loadAnalysisHistory
+    );
+
+    loadAnalysisHistory();
+});

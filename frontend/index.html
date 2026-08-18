@@ -40,6 +40,7 @@
     <a href="#analyzer">Analyzer</a>
     <a href="#jobMatch">Job Match</a>
     <a href="#results">Results</a>
+    <a href="#history">History</a>
     <a href="#how-it-works">How It Works</a>
 </nav>
 
@@ -363,6 +364,120 @@
                 </div>
             </section>
 
+
+
+            <section id="history" class="history-section">
+                <div class="history-header">
+                    <div>
+                        <p class="eyebrow">YOUR ACTIVITY</p>
+                        <h2>Analysis History</h2>
+                        <p class="history-subtitle">
+                            View your recently analyzed resumes and ATS scores.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        id="refreshHistoryBtn"
+                        class="history-refresh-btn">
+                        ↻ Refresh
+                    </button>
+                </div>
+
+                <div id="historyLoading" class="history-state hidden">
+                    Loading analysis history...
+                </div>
+
+                <div id="historyError" class="history-state history-error hidden">
+                </div>
+
+                <div id="historyEmpty" class="history-state hidden">
+                    <div class="history-empty-icon">⌁</div>
+                    <h3>No analyses yet</h3>
+                    <p>
+                        Analyze your first resume and your results will appear here.
+                    </p>
+                </div>
+
+                <div
+                    id="historyList"
+                    class="history-list">
+                </div>
+            </section>
+
+
+            <!-- HISTORY DETAIL MODAL -->
+            <div id="historyDetailModal" class="history-detail-modal hidden">
+                <div class="history-detail-overlay" id="historyDetailOverlay"></div>
+
+                <div class="history-detail-panel">
+                    <button
+                        type="button"
+                        id="closeHistoryDetail"
+                        class="history-detail-close"
+                        aria-label="Close">
+                        ×
+                    </button>
+
+                    <div class="history-detail-header">
+                        <p class="eyebrow">ANALYSIS HISTORY</p>
+                        <h2 id="historyDetailTitle">Resume Analysis</h2>
+                        <p id="historyDetailDate">
+                            Analysis details
+                        </p>
+                    </div>
+
+                    <div class="history-detail-score">
+                        <div>
+                            <span>ATS SCORE</span>
+                            <strong id="historyDetailScore">0</strong>
+                            <small>/100</small>
+                        </div>
+
+                        <div
+                            id="historyDetailRating"
+                            class="history-detail-rating">
+                            —
+                        </div>
+                    </div>
+
+                    <div class="history-detail-stats">
+                        <div class="history-detail-stat">
+                            <span>📝</span>
+                            <strong id="historyDetailWords">0</strong>
+                            <small>Words</small>
+                        </div>
+
+                        <div class="history-detail-stat">
+                            <span>🧠</span>
+                            <strong id="historyDetailSkills">0</strong>
+                            <small>Skills</small>
+                        </div>
+
+                        <div class="history-detail-stat">
+                            <span>💡</span>
+                            <strong id="historyDetailSuggestions">0</strong>
+                            <small>Suggestions</small>
+                        </div>
+                    </div>
+
+                    <div class="history-detail-section">
+                        <h3>Detected Skills</h3>
+                        <div
+                            id="historyDetailSkillsList"
+                            class="history-detail-tags">
+                        </div>
+                    </div>
+
+                    <div class="history-detail-section">
+                        <h3>Suggestions</h3>
+                        <div
+                            id="historyDetailSuggestionsList"
+                            class="history-detail-suggestions">
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <section id="results"
                      class="results hidden">
