@@ -1,8 +1,8 @@
 "use strict";
 
 const API_URL = window.location.hostname === "localhost"
-    ? "http://localhost:8000"
-    : "http://127.0.0.1:8000";
+    ? "https://ai-resume-analyzer-api-gr6p.onrender.com"
+    : "https://ai-resume-analyzer-api-gr6p.onrender.com";
 
 const resumeFile = document.getElementById("resumeFile");
 let selectedFile = null;
