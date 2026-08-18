@@ -31,7 +31,9 @@ app.add_middleware(
 from backend.history import (
     save_history,
     load_history,
-    create_history_record
+    create_history_record,
+    delete_history_record,
+    clear_history
 )
 
 UPLOAD_DIR = Path("uploads")
@@ -122,6 +124,32 @@ def get_history():
     return {
         "status": "success",
         "history": load_history()
+    }
+
+
+@app.delete("/history/{record_id}")
+def delete_history(record_id: str):
+    deleted = delete_history_record(record_id)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail="History record not found."
+        )
+
+    return {
+        "status": "success",
+        "message": "History record deleted."
+    }
+
+
+@app.delete("/history")
+def clear_all_history():
+    clear_history()
+
+    return {
+        "status": "success",
+        "message": "All history cleared."
     }
 
 

@@ -52,3 +52,31 @@ def create_history_record(
         "suggestions": suggestions,
         "created_at": datetime.now().isoformat()
     }
+
+
+def delete_history_record(record_id):
+    history = load_history()
+
+    updated_history = [
+        item for item in history
+        if str(item.get("id")) != str(record_id)
+    ]
+
+    if len(updated_history) == len(history):
+        return False
+
+    HISTORY_FILE.write_text(
+        json.dumps(updated_history, indent=2)
+    )
+
+    return True
+
+
+def clear_history():
+    HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    HISTORY_FILE.write_text(
+        json.dumps([], indent=2)
+    )
+
+    return True

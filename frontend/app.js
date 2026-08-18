@@ -1,8 +1,10 @@
 "use strict";
 
-const API_URL = window.location.hostname === "localhost"
-    ? "https://ai-resume-analyzer-api-gr6p.onrender.com"
-    : "https://ai-resume-analyzer-api-gr6p.onrender.com";
+const API_URL =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+        ? "http://127.0.0.1:8001"
+        : "https://ai-resume-analyzer-api-gr6p.onrender.com";
 
 const resumeFile = document.getElementById("resumeFile");
 let selectedFile = null;
@@ -2197,12 +2199,21 @@ async function loadAnalysisHistory() {
                         ${escapeHistoryHTML(ratingText)}
                     </div>
 
-                    <button
-                        type="button"
-                        class="history-view-btn"
-                        onclick="openHistoryDetail(window.analysisHistory[${index}])">
-                        View Details
-                    </button>
+                    <div class="history-card-actions">
+                        <button
+                            type="button"
+                            class="history-view-btn"
+                            onclick="openHistoryDetail(window.analysisHistory[${index}])">
+                            View Details
+                        </button>
+
+                        <button
+                            type="button"
+                            class="history-delete-btn"
+                            onclick="deleteHistoryRecord(window.analysisHistory[${index}].id)">
+                            🗑️ Delete
+                        </button>
+                    </div>
                 </article>
             `;
         }).join("");
@@ -2219,6 +2230,76 @@ async function loadAnalysisHistory() {
         }
     }
 }
+
+
+async function deleteHistoryRecord(recordId) {
+    if (!recordId) {
+        alert("Unable to identify this history record.");
+        return;
+    }
+
+    const confirmed = confirm(
+        "Are you sure you want to delete this analysis?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(
+            `${API_URL}/history/${encodeURIComponent(recordId)}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail || "Unable to delete history record."
+            );
+        }
+
+        await loadAnalysisHistory();
+
+    } catch (error) {
+        console.error("Delete history error:", error);
+        alert(error.message || "Unable to delete history record.");
+    }
+}
+
+
+async function clearAllHistory() {
+    const confirmed = confirm(
+        "Are you sure you want to delete ALL analysis history?\n\nThis action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(
+            `${API_URL}/history`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail || "Unable to clear analysis history."
+            );
+        }
+
+        await loadAnalysisHistory();
+
+    } catch (error) {
+        console.error("Clear history error:", error);
+        alert(error.message || "Unable to clear analysis history.");
+    }
+}
+
 
 function getHistoryRating(score) {
     if (score >= 85) return "Excellent";
@@ -2257,6 +2338,14 @@ function escapeHistoryHTML(value) {
 document.addEventListener("DOMContentLoaded", () => {
     const refreshHistoryBtn =
         document.getElementById("refreshHistoryBtn");
+
+    const clearHistoryBtn =
+        document.getElementById("clearHistoryBtn");
+
+    clearHistoryBtn?.addEventListener(
+        "click",
+        clearAllHistory
+    );
 
     refreshHistoryBtn?.addEventListener(
         "click",
