@@ -28,6 +28,12 @@ app.add_middleware(
 )
 
 
+from backend.history import (
+    save_history,
+    load_history,
+    create_history_record
+)
+
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -82,6 +88,15 @@ async def analyze_resume_endpoint(file: UploadFile = File(...)):
             ats_score
         )
 
+        history_record = create_history_record(
+            file.filename,
+            ats_score,
+            analysis,
+            suggestions
+        )
+
+        save_history(history_record)
+
         return {
     "status": "success",
     "filename": file.filename,
@@ -100,6 +115,14 @@ async def analyze_resume_endpoint(file: UploadFile = File(...)):
             status_code=500,
             detail=str(e)
         )
+
+
+@app.get("/history")
+def get_history():
+    return {
+        "status": "success",
+        "history": load_history()
+    }
 
 
 from pydantic import BaseModel
