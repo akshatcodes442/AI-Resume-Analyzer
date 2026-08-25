@@ -1,12 +1,25 @@
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Depends
+from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.analyzer import analyze_resume
 from backend.resume_parser import extract_text_from_pdf
 from backend.scorer import calculate_ats_score
 from backend.suggestions import generate_suggestions
+
+
+from backend.auth import (
+    load_users,
+    save_users,
+    find_user_by_email,
+    hash_password,
+    verify_password,
+    create_access_token,
+    decode_access_token
+)
 
 
 app = FastAPI(
@@ -36,6 +49,43 @@ from backend.history import (
     clear_history
 )
 
+# =========================
+# AUTHENTICATION DEPENDENCY
+# =========================
+
+security = HTTPBearer()
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    token = credentials.credentials
+
+    try:
+        payload = decode_access_token(token)
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token."
+        )
+
+    email = payload.get("sub")
+
+    if not email:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication token."
+        )
+
+    user = find_user_by_email(email)
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found."
+        )
+
+    return user
+
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -54,7 +104,10 @@ def health():
         "status": "healthy"
     }
 @app.post("/analyze-resume")
-async def analyze_resume_endpoint(file: UploadFile = File(...)):
+async def analyze_resume_endpoint(
+    file: UploadFile = File(...),
+    current_user=Depends(get_current_user)
+):
 
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
@@ -94,7 +147,8 @@ async def analyze_resume_endpoint(file: UploadFile = File(...)):
             file.filename,
             ats_score,
             analysis,
-            suggestions
+            suggestions,
+            user_email=current_user.get("email")
         )
 
         save_history(history_record)
@@ -120,16 +174,26 @@ async def analyze_resume_endpoint(file: UploadFile = File(...)):
 
 
 @app.get("/history")
-def get_history():
+def get_history(current_user=Depends(get_current_user)):
+    user_email = current_user.get("email")
+
     return {
         "status": "success",
-        "history": load_history()
+        "history": load_history(user_email)
     }
 
 
 @app.delete("/history/{record_id}")
-def delete_history(record_id: str):
-    deleted = delete_history_record(record_id)
+def delete_history(
+    record_id: str,
+    current_user=Depends(get_current_user)
+):
+    user_email = current_user.get("email")
+
+    deleted = delete_history_record(
+        record_id,
+        user_email=user_email
+    )
 
     if not deleted:
         raise HTTPException(
@@ -144,12 +208,16 @@ def delete_history(record_id: str):
 
 
 @app.delete("/history")
-def clear_all_history():
-    clear_history()
+def clear_all_history(
+    current_user=Depends(get_current_user)
+):
+    user_email = current_user.get("email")
+
+    clear_history(user_email=user_email)
 
     return {
         "status": "success",
-        "message": "All history cleared."
+        "message": "Your history cleared successfully."
     }
 
 
@@ -949,5 +1017,127 @@ def job_match(request: JobMatchRequest):
         "matching_skills": matching_skills,
         "missing_skills": missing_skills,
         "recommendations": recommendations,
+    }
+
+
+# =========================
+# AUTHENTICATION
+# =========================
+
+class SignupRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+@app.post("/auth/signup")
+def signup(request: SignupRequest):
+
+    name = request.name.strip()
+    email = request.email.strip().lower()
+    password = request.password
+
+    if not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Name is required."
+        )
+
+    if not email or "@" not in email:
+        raise HTTPException(
+            status_code=400,
+            detail="Enter a valid email address."
+        )
+
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 8 characters."
+        )
+
+    if find_user_by_email(email):
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists."
+        )
+
+    user = {
+        "name": name,
+        "email": email,
+        "hashed_password": hash_password(password)
+    }
+
+    users = load_users()
+    users.append(user)
+    save_users(users)
+
+    token = create_access_token({
+        "sub": email
+    })
+
+    return {
+        "status": "success",
+        "message": "Account created successfully.",
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "name": name,
+            "email": email
+        }
+    }
+
+
+@app.post("/auth/login")
+def login(request: LoginRequest):
+
+    email = request.email.strip().lower()
+
+    user = find_user_by_email(email)
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password."
+        )
+
+    if not verify_password(
+        request.password,
+        user["hashed_password"]
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password."
+        )
+
+    token = create_access_token({
+        "sub": email
+    })
+
+    return {
+        "status": "success",
+        "message": "Login successful.",
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "name": user.get("name", ""),
+            "email": user["email"]
+        }
+    }
+
+
+@app.get("/auth/me")
+def get_me(current_user=Depends(get_current_user)):
+
+    return {
+        "status": "success",
+        "user": {
+            "name": current_user.get("name", ""),
+            "email": current_user.get("email", "")
+        }
     }
 

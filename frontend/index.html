@@ -51,6 +51,187 @@
         </header>
 
 
+
+        <!-- =====================================================
+             AKSH AI AUTHENTICATION
+             ===================================================== -->
+        <div class="auth-overlay hidden" id="authOverlay">
+            <div class="auth-modal">
+
+                <button
+                    type="button"
+                    class="auth-close"
+                    id="authClose"
+                    aria-label="Close">
+                    ×
+                </button>
+
+                <div class="auth-logo">
+                    <img
+                        src="assets/aksh-ai-logo.png"
+                        alt="AKSH AI">
+                </div>
+
+                <div class="auth-header">
+                    <p class="eyebrow">AKSH AI ACCOUNT</p>
+                    <h2 id="authTitle">Welcome Back</h2>
+                    <p id="authSubtitle">
+                        Sign in to access your career intelligence dashboard.
+                    </p>
+                </div>
+
+                <!-- LOGIN -->
+                <form id="loginForm" class="auth-form">
+
+                    <label for="loginEmail">
+                        Email
+                    </label>
+
+                    <input
+                        type="email"
+                        id="loginEmail"
+                        placeholder="you@example.com"
+                        required>
+
+                    <label for="loginPassword">
+                        Password
+                    </label>
+
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        placeholder="Enter your password"
+                        required>
+
+                    <button
+                        type="submit"
+                        class="auth-submit">
+                        Sign In
+                    </button>
+
+                    <p class="auth-switch">
+                        Don't have an account?
+                        <button
+                            type="button"
+                            id="showSignup"
+                            class="auth-link">
+                            Create account
+                        </button>
+                    </p>
+
+                </form>
+
+                <!-- SIGNUP -->
+                <form
+                    id="signupForm"
+                    class="auth-form hidden">
+
+                    <label for="signupName">
+                        Full Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="signupName"
+                        placeholder="Your name"
+                        required>
+
+                    <label for="signupEmail">
+                        Email
+                    </label>
+
+                    <input
+                        type="email"
+                        id="signupEmail"
+                        placeholder="you@example.com"
+                        required>
+
+                    <label for="signupPassword">
+                        Password
+                    </label>
+
+                    <input
+                        type="password"
+                        id="signupPassword"
+                        placeholder="Create a password"
+                        minlength="6"
+                        required>
+
+                    <button
+                        type="submit"
+                        class="auth-submit">
+                        Create Account
+                    </button>
+
+                    <p class="auth-switch">
+                        Already have an account?
+                        <button
+                            type="button"
+                            id="showLogin"
+                            class="auth-link">
+                            Sign in
+                        </button>
+                    </p>
+
+                </form>
+
+                <div
+                    id="authMessage"
+                    class="auth-message hidden">
+                </div>
+
+            </div>
+        </div>
+
+        <!-- AUTH HEADER ACTION -->
+        <div class="auth-user-bar" id="authUserBar">
+
+            <div
+                class="auth-guest"
+                id="authGuest">
+
+                <button
+                    type="button"
+                    class="auth-nav-btn"
+                    id="loginBtn">
+                    Sign In
+                </button>
+
+                <button
+                    type="button"
+                    class="auth-nav-btn primary"
+                    id="signupBtn">
+                    Get Started
+                </button>
+
+            </div>
+
+            <div
+                class="auth-user"
+                id="authUser"
+                hidden>
+
+                <span class="auth-avatar">
+                    A
+                </span>
+
+                <span
+                    class="auth-user-name"
+                    id="authUserName">
+                    User
+                </span>
+
+                <button
+                    type="button"
+                    class="auth-nav-btn"
+                    id="logoutBtn">
+                    Logout
+                </button>
+
+            </div>
+
+        </div>
+
         <main class="container" id="analyzer">
 
             <section class="hero aksh-hero">

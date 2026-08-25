@@ -3,7 +3,7 @@
 const API_URL =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1"
-        ? "http://127.0.0.1:8001"
+        ? "http://127.0.0.1:8000"
         : "https://ai-resume-analyzer-api-gr6p.onrender.com";
 
 const resumeFile = document.getElementById("resumeFile");
@@ -106,10 +106,19 @@ async function analyzeResume() {
 
     try {
 
+        const token = getAuthToken();
+
+        if (!token) {
+            throw new Error("Please login before analyzing a resume.");
+        }
+
         const response = await fetch(
             `${API_URL}/analyze-resume`,
             {
                 method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
                 body: formData
             }
         );
@@ -1292,11 +1301,20 @@ jobMatchBtn.addEventListener("click", async () => {
 
     try {
 
+        const token = getAuthToken();
+
+        if (!token) {
+            throw new Error("Please login before using Job Match.");
+        }
+
         const resumeResponse =
             await fetch(
                 `${API_URL}/analyze-resume`,
                 {
                     method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    },
                     body: (() => {
 
                         const formData =
@@ -2142,7 +2160,19 @@ async function loadAnalysisHistory() {
     historyList.innerHTML = "";
 
     try {
-        const response = await fetch(`${API_URL}/history`);
+        const token = getAuthToken();
+
+        if (!token) {
+            historyLoading?.classList.add("hidden");
+            historyEmpty?.classList.remove("hidden");
+            return;
+        }
+
+        const response = await fetch(`${API_URL}/history`, {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
 
         if (!response.ok) {
             throw new Error("Unable to load analysis history.");
@@ -2248,7 +2278,10 @@ async function deleteHistoryRecord(recordId) {
         const response = await fetch(
             `${API_URL}/history/${encodeURIComponent(recordId)}`,
             {
-                method: "DELETE"
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${getAuthToken()}`
+                }
             }
         );
 
@@ -2277,10 +2310,19 @@ async function clearAllHistory() {
     if (!confirmed) return;
 
     try {
+        const token = getAuthToken();
+
+        if (!token) {
+            throw new Error("Please login before clearing history.");
+        }
+
         const response = await fetch(
             `${API_URL}/history`,
             {
-                method: "DELETE"
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
             }
         );
 
@@ -2354,3 +2396,536 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadAnalysisHistory();
 });
+
+
+/* =========================================================
+   AKSH AI AUTHENTICATION
+   ========================================================= */
+
+const AUTH_TOKEN_KEY = "aksh_ai_access_token";
+const AUTH_USER_KEY = "aksh_ai_user";
+
+function getAuthToken() {
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+function saveAuthSession(data) {
+    if (data.access_token) {
+        localStorage.setItem(
+            AUTH_TOKEN_KEY,
+            data.access_token
+        );
+    }
+
+    if (data.user) {
+        localStorage.setItem(
+            AUTH_USER_KEY,
+            JSON.stringify(data.user)
+        );
+    }
+}
+
+function clearAuthSession() {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+}
+
+function getSavedUser() {
+    try {
+        return JSON.parse(
+            localStorage.getItem(AUTH_USER_KEY)
+        );
+    } catch {
+        return null;
+    }
+}
+
+async function getCurrentUser() {
+    const token = getAuthToken();
+
+    if (!token) {
+        return null;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_URL}/auth/me`,
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        if (!response.ok) {
+            clearAuthSession();
+            return null;
+        }
+
+        const data = await response.json();
+
+        if (data.user) {
+            localStorage.setItem(
+                AUTH_USER_KEY,
+                JSON.stringify(data.user)
+            );
+        }
+
+        return data.user || null;
+
+    } catch (error) {
+        console.error(
+            "Auth session check failed:",
+            error
+        );
+
+        return null;
+    }
+}
+
+async function logoutAKSHAI() {
+    clearAuthSession();
+
+    window.dispatchEvent(
+        new CustomEvent("aksh-ai-logout")
+    );
+
+    console.log("AKSH AI: Logged out");
+}
+
+
+/* =========================================================
+   AUTH API HELPERS
+   ========================================================= */
+
+async function signupAKSHAI(
+    name,
+    email,
+    password
+) {
+    const response = await fetch(
+        `${API_URL}/auth/signup`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name,
+                email,
+                password
+            })
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            data.detail ||
+            "Signup failed."
+        );
+    }
+
+    saveAuthSession(data);
+
+    return data;
+}
+
+
+async function loginAKSHAI(
+    email,
+    password
+) {
+    const response = await fetch(
+        `${API_URL}/auth/login`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                email,
+                password
+            })
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            data.detail ||
+            "Login failed."
+        );
+    }
+
+    saveAuthSession(data);
+
+    return data;
+}
+
+
+/* =========================================================
+   AUTH SESSION INITIALIZATION
+   ========================================================= */
+
+async function initializeAKSHAIAuth() {
+
+    const savedUser = getSavedUser();
+
+    if (savedUser) {
+        console.log(
+            "AKSH AI user:",
+            savedUser.email
+        );
+    }
+
+    const currentUser =
+        await getCurrentUser();
+
+    if (currentUser) {
+        console.log(
+            "AKSH AI session verified:",
+            currentUser.email
+        );
+    } else {
+        console.log(
+            "AKSH AI: Guest session"
+        );
+    }
+
+    window.dispatchEvent(
+        new CustomEvent(
+            "aksh-ai-auth-ready",
+            {
+                detail: {
+                    user: currentUser
+                }
+            }
+        )
+    );
+}
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+        initializeAKSHAIAuth();
+    }
+);
+
+
+/* =========================================================
+   AUTH STATE HELPERS
+   ========================================================= */
+
+function isLoggedIn() {
+    return Boolean(
+        getAuthToken()
+    );
+}
+
+function getLoggedInUser() {
+    return getSavedUser();
+}
+
+
+/* Make auth functions available globally */
+
+window.AKSHAIAuth = {
+    signup: signupAKSHAI,
+    login: loginAKSHAI,
+    logout: logoutAKSHAI,
+    getCurrentUser,
+    getToken: getAuthToken,
+    getUser: getLoggedInUser,
+    isLoggedIn
+};
+
+
+/* =========================================================
+   AKSH AI AUTH UI
+   ========================================================= */
+
+(function initAKSHAIAuthUI() {
+
+    const overlay = document.getElementById("authOverlay");
+    const loginForm = document.getElementById("loginForm");
+    const signupForm = document.getElementById("signupForm");
+
+    const loginBtn = document.getElementById("loginBtn");
+    const signupBtn = document.getElementById("signupBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    const authClose = document.getElementById("authClose");
+    const showSignup = document.getElementById("showSignup");
+    const showLogin = document.getElementById("showLogin");
+
+    const authGuest = document.getElementById("authGuest");
+    const authUser = document.getElementById("authUser");
+    const authUserName = document.getElementById("authUserName");
+
+    const authTitle = document.getElementById("authTitle");
+    const authSubtitle = document.getElementById("authSubtitle");
+    const authMessage = document.getElementById("authMessage");
+
+    if (!overlay) {
+        console.warn("AKSH AI Auth UI not found.");
+        return;
+    }
+
+    function openAuth(mode = "login") {
+        overlay.classList.remove("hidden");
+        showAuthMode(mode);
+        clearAuthMessage();
+    }
+
+    function closeAuth() {
+        overlay.classList.add("hidden");
+        clearAuthMessage();
+    }
+
+    function showAuthMode(mode) {
+
+        const loginMode = mode === "login";
+
+        loginForm.classList.toggle("hidden", !loginMode);
+        signupForm.classList.toggle("hidden", loginMode);
+
+        authTitle.textContent =
+            loginMode ? "Welcome Back" : "Create Your Account";
+
+        authSubtitle.textContent =
+            loginMode
+                ? "Sign in to access your career intelligence dashboard."
+                : "Create your AKSH AI account and start analyzing your career.";
+    }
+
+    function showAuthMessage(message, type = "error") {
+        authMessage.textContent = message;
+        authMessage.className = `auth-message ${type}`;
+    }
+
+    function clearAuthMessage() {
+        authMessage.textContent = "";
+        authMessage.className = "auth-message hidden";
+    }
+
+    function updateAuthUI(user) {
+
+        const loggedIn = Boolean(user);
+
+        if (authGuest) {
+            authGuest.hidden = loggedIn;
+            authGuest.style.display = loggedIn ? "none" : "flex";
+        }
+
+        if (authUser) {
+            authUser.hidden = !loggedIn;
+            authUser.style.display = loggedIn ? "flex" : "none";
+        }
+
+        if (loggedIn) {
+            const name = user.name || user.email || "User";
+
+            if (authUserName) {
+                authUserName.textContent = name;
+            }
+
+            const avatar =
+                document.querySelector(".auth-avatar");
+
+            if (avatar) {
+                avatar.textContent =
+                    name.charAt(0).toUpperCase();
+            }
+        }
+    }
+
+    loginBtn?.addEventListener("click", () => {
+        openAuth("login");
+    });
+
+    signupBtn?.addEventListener("click", () => {
+        openAuth("signup");
+    });
+
+    authClose?.addEventListener("click", closeAuth);
+
+    showSignup?.addEventListener("click", () => {
+        showAuthMode("signup");
+        clearAuthMessage();
+    });
+
+    showLogin?.addEventListener("click", () => {
+        showAuthMode("login");
+        clearAuthMessage();
+    });
+
+    overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+            closeAuth();
+        }
+    });
+
+    loginForm?.addEventListener("submit", async (event) => {
+
+        event.preventDefault();
+
+        const email =
+            document.getElementById("loginEmail").value.trim();
+
+        const password =
+            document.getElementById("loginPassword").value;
+
+        if (!email || !password) {
+            showAuthMessage("Please enter email and password.");
+            return;
+        }
+
+        const submit =
+            loginForm.querySelector(".auth-submit");
+
+        submit.disabled = true;
+        submit.textContent = "Signing in...";
+
+        try {
+
+            const data =
+                await window.AKSHAIAuth.login(
+                    email,
+                    password
+                );
+
+            updateAuthUI(data.user);
+
+            showAuthMessage(
+                "Login successful. Welcome to AKSH AI!",
+                "success"
+            );
+
+            setTimeout(() => {
+                closeAuth();
+                loginForm.reset();
+            }, 700);
+
+        } catch (error) {
+
+            showAuthMessage(
+                error.message || "Login failed."
+            );
+
+        } finally {
+
+            submit.disabled = false;
+            submit.textContent = "Sign In";
+
+        }
+    });
+
+    signupForm?.addEventListener("submit", async (event) => {
+
+        event.preventDefault();
+
+        const name =
+            document.getElementById("signupName").value.trim();
+
+        const email =
+            document.getElementById("signupEmail").value.trim();
+
+        const password =
+            document.getElementById("signupPassword").value;
+
+        if (!name || !email || !password) {
+            showAuthMessage("Please fill all fields.");
+            return;
+        }
+
+        if (password.length < 8) {
+            showAuthMessage(
+                "Password must contain at least 8 characters."
+            );
+            return;
+        }
+
+        const submit =
+            signupForm.querySelector(".auth-submit");
+
+        submit.disabled = true;
+        submit.textContent = "Creating account...";
+
+        try {
+
+            const data =
+                await window.AKSHAIAuth.signup(
+                    name,
+                    email,
+                    password
+                );
+
+            updateAuthUI(data.user);
+
+            showAuthMessage(
+                "Account created successfully!",
+                "success"
+            );
+
+            setTimeout(() => {
+                closeAuth();
+                signupForm.reset();
+            }, 700);
+
+        } catch (error) {
+
+            showAuthMessage(
+                error.message || "Signup failed."
+            );
+
+        } finally {
+
+            submit.disabled = false;
+            submit.textContent = "Create Account";
+
+        }
+    });
+
+    logoutBtn?.addEventListener("click", async () => {
+
+        await window.AKSHAIAuth.logout();
+
+        localStorage.removeItem("aksh_ai_access_token");
+        localStorage.removeItem("aksh_ai_user");
+
+        updateAuthUI(null);
+
+        console.log("AKSH AI logout successful");
+    });
+
+    window.addEventListener(
+        "aksh-ai-auth-ready",
+        (event) => {
+            updateAuthUI(
+                event.detail?.user || null
+            );
+        }
+    );
+
+    window.addEventListener(
+        "aksh-ai-logout",
+        () => {
+            updateAuthUI(null);
+        }
+    );
+
+    const existingUser =
+        window.AKSHAIAuth.getUser();
+
+    if (existingUser) {
+        updateAuthUI(existingUser);
+    } else {
+        updateAuthUI(null);
+    }
+
+})();

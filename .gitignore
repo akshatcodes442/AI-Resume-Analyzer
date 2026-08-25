@@ -24,3 +24,11 @@ backup_before_premium/
 __pycache__/
 *.pyc
 
+
+# Project backup files
+*.backup-*
+*.before-*
+*.backup-auth
+
+*.auth-backup
+*.history-backup
