@@ -3989,3 +3989,41 @@ window.AKSHAIAuth = {
     }
 
 })();
+
+/* =========================================================
+   MOBILE MENU AUTH ACTIONS
+   Moves Profile / Settings / Logout into hamburger menu
+   on mobile, and restores them on desktop.
+   ========================================================= */
+
+(function setupMobileAuthMenu() {
+    const authBar = document.getElementById("authUserBar");
+    const topNav = document.getElementById("topNav");
+
+    if (!authBar || !topNav) return;
+
+    const originalParent = authBar.parentElement;
+    const originalNextSibling = authBar.nextSibling;
+    const mobileQuery = window.matchMedia("(max-width: 760px)");
+
+    function updateMobileAuthMenu() {
+        if (mobileQuery.matches) {
+            if (authBar.parentElement !== topNav) {
+                topNav.appendChild(authBar);
+            }
+        } else {
+            if (authBar.parentElement !== originalParent) {
+                originalParent.insertBefore(authBar, originalNextSibling);
+            }
+        }
+    }
+
+    updateMobileAuthMenu();
+
+    if (mobileQuery.addEventListener) {
+        mobileQuery.addEventListener("change", updateMobileAuthMenu);
+    } else {
+        mobileQuery.addListener(updateMobileAuthMenu);
+    }
+})();
+
