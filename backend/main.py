@@ -1035,6 +1035,15 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ProfileUpdateRequest(BaseModel):
+    name: str = ""
+    phone: str = ""
+    role: str = ""
+    experience: str = ""
+    skills: str = ""
+    bio: str = ""
+
+
 @app.post("/auth/signup")
 def signup(request: SignupRequest):
 
@@ -1126,6 +1135,185 @@ def login(request: LoginRequest):
         "user": {
             "name": user.get("name", ""),
             "email": user["email"]
+        }
+    }
+
+
+@app.get("/auth/profile")
+def get_profile(current_user=Depends(get_current_user)):
+    return {
+        "status": "success",
+        "profile": {
+            "name": current_user.get("name", ""),
+            "email": current_user.get("email", ""),
+            "phone": current_user.get("phone", ""),
+            "role": current_user.get("role", ""),
+            "experience": current_user.get("experience", ""),
+            "skills": current_user.get("skills", ""),
+            "bio": current_user.get("bio", "")
+        }
+    }
+
+
+@app.put("/auth/profile")
+def update_profile(
+    request: ProfileUpdateRequest,
+    current_user=Depends(get_current_user)
+):
+    users = load_users()
+
+    email = current_user.get("email", "").strip().lower()
+
+    for user in users:
+        if user.get("email", "").strip().lower() == email:
+            user["name"] = request.name.strip()
+            user["phone"] = request.phone.strip()
+            user["role"] = request.role.strip()
+            user["experience"] = request.experience.strip()
+            user["skills"] = request.skills.strip()
+            user["bio"] = request.bio.strip()
+            break
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found."
+        )
+
+    save_users(users)
+
+    return {
+        "status": "success",
+        "message": "Profile updated successfully.",
+        "profile": {
+            "name": request.name.strip(),
+            "email": email,
+            "phone": request.phone.strip(),
+            "role": request.role.strip(),
+            "experience": request.experience.strip(),
+            "skills": request.skills.strip(),
+            "bio": request.bio.strip()
+        }
+    }
+
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class PreferencesUpdateRequest(BaseModel):
+    theme: str = "dark"
+    notifications: bool = True
+    email_notifications: bool = True
+
+
+@app.put("/auth/change-password")
+def change_password(
+    request: ChangePasswordRequest,
+    current_user=Depends(get_current_user)
+):
+    if not verify_password(
+        request.current_password,
+        current_user["hashed_password"]
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect."
+        )
+
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be at least 8 characters."
+        )
+
+    if request.current_password == request.new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from current password."
+        )
+
+    users = load_users()
+    email = current_user.get("email", "").strip().lower()
+
+    for user in users:
+        if user.get("email", "").strip().lower() == email:
+            user["hashed_password"] = hash_password(
+                request.new_password
+            )
+            break
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found."
+        )
+
+    save_users(users)
+
+    return {
+        "status": "success",
+        "message": "Password changed successfully."
+    }
+
+
+@app.get("/auth/preferences")
+def get_preferences(
+    current_user=Depends(get_current_user)
+):
+    return {
+        "status": "success",
+        "preferences": {
+            "theme": current_user.get("theme", "dark"),
+            "notifications": current_user.get(
+                "notifications", True
+            ),
+            "email_notifications": current_user.get(
+                "email_notifications", True
+            )
+        }
+    }
+
+
+@app.put("/auth/preferences")
+def update_preferences(
+    request: PreferencesUpdateRequest,
+    current_user=Depends(get_current_user)
+):
+    allowed_themes = {"dark", "light"}
+
+    if request.theme not in allowed_themes:
+        raise HTTPException(
+            status_code=400,
+            detail="Theme must be dark or light."
+        )
+
+    users = load_users()
+    email = current_user.get("email", "").strip().lower()
+
+    for user in users:
+        if user.get("email", "").strip().lower() == email:
+            user["theme"] = request.theme
+            user["notifications"] = request.notifications
+            user["email_notifications"] = (
+                request.email_notifications
+            )
+            break
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found."
+        )
+
+    save_users(users)
+
+    return {
+        "status": "success",
+        "message": "Preferences updated successfully.",
+        "preferences": {
+            "theme": request.theme,
+            "notifications": request.notifications,
+            "email_notifications": request.email_notifications
         }
     }
 

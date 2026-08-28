@@ -1859,6 +1859,118 @@ function closeHistoryDetail() {
     document.body.classList.remove("history-modal-open");
 }
 
+
+const settingsChangePasswordBtn = document.getElementById("settingsChangePasswordBtn");
+const settingsCurrentPassword = document.getElementById("settingsCurrentPassword");
+const settingsNewPassword = document.getElementById("settingsNewPassword");
+const settingsConfirmPassword = document.getElementById("settingsConfirmPassword");
+const settingsPasswordMessage = document.getElementById("settingsPasswordMessage");
+
+settingsChangePasswordBtn?.addEventListener("click", async () => {
+    const currentPassword = settingsCurrentPassword?.value || "";
+    const newPassword = settingsNewPassword?.value || "";
+    const confirmPassword = settingsConfirmPassword?.value || "";
+
+    if (!settingsPasswordMessage) return;
+
+    settingsPasswordMessage.textContent = "";
+    settingsPasswordMessage.className = "settings-password-message";
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        settingsPasswordMessage.textContent = "Please fill all password fields.";
+        settingsPasswordMessage.classList.add("error");
+        return;
+    }
+
+    if (newPassword.length < 8) {
+        settingsPasswordMessage.textContent =
+            "New password must be at least 8 characters.";
+        settingsPasswordMessage.classList.add("error");
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        settingsPasswordMessage.textContent =
+            "New password and confirm password do not match.";
+        settingsPasswordMessage.classList.add("error");
+        return;
+    }
+
+    if (currentPassword === newPassword) {
+        settingsPasswordMessage.textContent =
+            "New password must be different from current password.";
+        settingsPasswordMessage.classList.add("error");
+        return;
+    }
+
+    const token = localStorage.getItem("aksh_ai_access_token");
+
+    if (!token) {
+        settingsPasswordMessage.textContent =
+            "Please login again before changing your password.";
+        settingsPasswordMessage.classList.add("error");
+        return;
+    }
+
+    const originalText = settingsChangePasswordBtn.textContent;
+    settingsChangePasswordBtn.disabled = true;
+    settingsChangePasswordBtn.textContent = "Changing...";
+
+    try {
+        const response = await fetch(`${API_URL}/auth/change-password`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Failed to change password.");
+        }
+
+        settingsPasswordMessage.textContent =
+            data.message || "Password changed successfully.";
+        settingsPasswordMessage.classList.add("success");
+
+        if (settingsCurrentPassword) settingsCurrentPassword.value = "";
+        if (settingsNewPassword) settingsNewPassword.value = "";
+        if (settingsConfirmPassword) settingsConfirmPassword.value = "";
+
+    } catch (error) {
+        settingsPasswordMessage.textContent =
+            error.message || "Something went wrong.";
+        settingsPasswordMessage.classList.add("error");
+    } finally {
+        settingsChangePasswordBtn.disabled = false;
+        settingsChangePasswordBtn.textContent = originalText;
+    }
+});
+
+document.querySelectorAll(".settings-password-toggle").forEach((button) => {
+    button.addEventListener("click", () => {
+        const targetId = button.dataset.target;
+        const input = document.getElementById(targetId);
+
+        if (!input) return;
+
+        if (input.type === "password") {
+            input.type = "text";
+            button.setAttribute("aria-label", "Hide password");
+        } else {
+            input.type = "password";
+            button.setAttribute("aria-label", "Show password");
+        }
+    });
+});
+
+
 document.addEventListener("DOMContentLoaded", () => {
 
     const menuToggle = document.getElementById("menuToggle");
@@ -2146,6 +2258,54 @@ document.addEventListener("DOMContentLoaded", () => {
    ANALYSIS HISTORY
    ========================================================= */
 
+
+function updateDashboardStats(history) {
+    const totalEl = document.getElementById("dashboardTotalAnalyses");
+    const averageEl = document.getElementById("dashboardAverageScore");
+    const bestEl = document.getElementById("dashboardBestScore");
+    const latestEl = document.getElementById("dashboardLatestScore");
+
+    if (!totalEl || !averageEl || !bestEl || !latestEl) return;
+
+    const records = Array.isArray(history) ? history : [];
+
+    let total = records.length;
+    let scoreTotal = 0;
+    let scoreCount = 0;
+    let best = 0;
+    let latest = 0;
+
+    for (let i = 0; i < records.length; i++) {
+        const score = Number(
+            records[i]?.ats_score ??
+            records[i]?.score ??
+            0
+        );
+
+        if (!Number.isFinite(score)) continue;
+
+        scoreTotal += score;
+        scoreCount++;
+
+        if (score > best) {
+            best = score;
+        }
+
+        if (i === 0) {
+            latest = score;
+        }
+    }
+
+    const average = scoreCount
+        ? Math.round(scoreTotal / scoreCount)
+        : 0;
+
+    totalEl.textContent = String(total);
+    averageEl.textContent = String(average);
+    bestEl.textContent = String(best);
+    latestEl.textContent = String(latest);
+}
+
 async function loadAnalysisHistory() {
     const historyList = document.getElementById("historyList");
     const historyLoading = document.getElementById("historyLoading");
@@ -2184,6 +2344,7 @@ async function loadAnalysisHistory() {
             : [];
 
         window.analysisHistory = history;
+        updateDashboardStats(history);
 
         historyLoading?.classList.add("hidden");
 
@@ -2360,11 +2521,13 @@ function formatHistoryDate(value) {
     }
 
     return date.toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
         day: "2-digit",
         month: "short",
         year: "numeric",
         hour: "2-digit",
-        minute: "2-digit"
+        minute: "2-digit",
+        hour12: true
     });
 }
 
@@ -2590,6 +2753,8 @@ async function initializeAKSHAIAuth() {
             "AKSH AI session verified:",
             currentUser.email
         );
+
+        await loadAnalysisHistory();
     } else {
         console.log(
             "AKSH AI: Guest session"
@@ -2644,6 +2809,892 @@ window.AKSHAIAuth = {
     isLoggedIn
 };
 
+
+
+
+/* =========================================================
+   AKSH AI PROFILE UI
+   ========================================================= */
+
+(function initAKSHAIProfileUI() {
+
+    const profileBtn =
+        document.getElementById("profileBtn");
+
+    const profileOverlay =
+        document.getElementById("profileOverlay");
+
+    const profileClose =
+        document.getElementById("profileClose");
+
+    const profileSaveBtn =
+        document.getElementById("profileSaveBtn");
+
+    const profileSaveMessage =
+        document.getElementById("profileSaveMessage");
+
+    const profileName =
+        document.getElementById("profileName");
+
+    const profileEmail =
+        document.getElementById("profileEmail");
+
+    const profilePhone =
+        document.getElementById("profilePhone");
+
+    const profileRole =
+        document.getElementById("profileRole");
+
+    const profileExperience =
+        document.getElementById("profileExperience");
+
+    const profileSkills =
+        document.getElementById("profileSkills");
+
+    const profileBio =
+        document.getElementById("profileBio");
+
+    const profileAvatarLarge =
+        document.getElementById("profileAvatarLarge");
+
+
+    if (!profileOverlay) {
+        console.warn("AKSH AI Profile UI not found.");
+        return;
+    }
+
+
+    function showProfileMessage(message, type = "success") {
+
+        if (!profileSaveMessage) return;
+
+        profileSaveMessage.textContent = message;
+
+        profileSaveMessage.className =
+            `profile-save-message ${type}`;
+
+        setTimeout(() => {
+
+            if (profileSaveMessage) {
+                profileSaveMessage.textContent = "";
+                profileSaveMessage.className =
+                    "profile-save-message";
+            }
+
+        }, 2500);
+    }
+
+
+    function updateProfileAvatar(name) {
+
+        const firstLetter =
+            (name || "A").trim().charAt(0).toUpperCase();
+
+        if (profileAvatarLarge) {
+            profileAvatarLarge.textContent =
+                firstLetter || "A";
+        }
+
+        const authAvatar =
+            document.querySelector(".auth-avatar");
+
+        if (authAvatar) {
+            authAvatar.textContent =
+                firstLetter || "A";
+        }
+
+        const authUserName =
+            document.getElementById("authUserName");
+
+        if (authUserName && name) {
+            authUserName.textContent = name;
+        }
+    }
+
+
+    function openProfile() {
+
+        loadProfile();
+
+        profileOverlay.classList.remove("hidden");
+
+        document.body.classList.add(
+            "profile-modal-open"
+        );
+    }
+
+
+    function closeProfile() {
+
+        profileOverlay.classList.add("hidden");
+
+        document.body.classList.remove(
+            "profile-modal-open"
+        );
+    }
+
+
+    async function loadProfile() {
+
+        const token =
+            window.AKSHAIAuth?.getToken?.();
+
+        const user =
+            window.AKSHAIAuth?.getUser?.();
+
+
+        if (!token) {
+
+            showProfileMessage(
+                "Please login to manage your profile.",
+                "error"
+            );
+
+            if (profileName) {
+                profileName.value =
+                    user?.name || "";
+            }
+
+            if (profileEmail) {
+                profileEmail.value =
+                    user?.email || "";
+            }
+
+            return;
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `${API_URL}/auth/profile`,
+                    {
+                        method: "GET",
+                        headers: {
+                            "Authorization":
+                                `Bearer ${token}`
+                        }
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    "Unable to load profile."
+                );
+            }
+
+
+            const profile =
+                data.profile || {};
+
+
+            if (profileName) {
+                profileName.value =
+                    profile.name || "";
+            }
+
+            if (profileEmail) {
+                profileEmail.value =
+                    profile.email || "";
+            }
+
+            if (profilePhone) {
+                profilePhone.value =
+                    profile.phone || "";
+            }
+
+            if (profileRole) {
+                profileRole.value =
+                    profile.role || "";
+            }
+
+            if (profileExperience) {
+                profileExperience.value =
+                    profile.experience || "";
+            }
+
+            if (profileSkills) {
+                profileSkills.value =
+                    profile.skills || "";
+            }
+
+            if (profileBio) {
+                profileBio.value =
+                    profile.bio || "";
+            }
+
+
+            updateProfileAvatar(
+                profile.name || user?.name || "A"
+            );
+
+
+            console.log(
+                "AKSH AI profile loaded from backend."
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Profile load failed:",
+                error
+            );
+
+            showProfileMessage(
+                error.message ||
+                "Failed to load profile.",
+                "error"
+            );
+        }
+    }
+
+
+    async function saveProfile() {
+
+        const token =
+            window.AKSHAIAuth?.getToken?.();
+
+
+        if (!token) {
+
+            showProfileMessage(
+                "Please login before saving your profile.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const profile = {
+
+            name:
+                profileName?.value.trim() || "",
+
+            phone:
+                profilePhone?.value.trim() || "",
+
+            role:
+                profileRole?.value.trim() || "",
+
+            experience:
+                profileExperience?.value || "",
+
+            skills:
+                profileSkills?.value.trim() || "",
+
+            bio:
+                profileBio?.value.trim() || ""
+
+        };
+
+
+        if (!profile.name) {
+
+            showProfileMessage(
+                "Full name is required.",
+                "error"
+            );
+
+            profileName?.focus();
+
+            return;
+        }
+
+
+        if (profileSaveBtn) {
+
+            profileSaveBtn.disabled = true;
+
+            profileSaveBtn.dataset.originalText =
+                profileSaveBtn.textContent;
+
+            profileSaveBtn.textContent =
+                "Saving...";
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `${API_URL}/auth/profile`,
+                    {
+                        method: "PUT",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+
+                            "Authorization":
+                                `Bearer ${token}`
+                        },
+
+                        body:
+                            JSON.stringify(profile)
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    "Profile update failed."
+                );
+            }
+
+
+            const updatedProfile =
+                data.profile || profile;
+
+
+            /*
+             * Keep the local auth user synchronized
+             * with the backend profile.
+             */
+
+            const authUser =
+                window.AKSHAIAuth?.getUser?.();
+
+
+            if (authUser) {
+
+                authUser.name =
+                    updatedProfile.name ||
+                    authUser.name;
+
+                localStorage.setItem(
+                    "aksh_ai_user",
+                    JSON.stringify(authUser)
+                );
+            }
+
+
+            updateProfileAvatar(
+                updatedProfile.name
+            );
+
+
+            /*
+             * Optional local cache for faster UI.
+             */
+
+            const cacheKey =
+                `aksh_ai_profile_${
+                    updatedProfile.email ||
+                    authUser?.email ||
+                    "guest"
+                }`;
+
+
+            localStorage.setItem(
+                cacheKey,
+                JSON.stringify({
+                    ...updatedProfile,
+                    updatedAt:
+                        new Date().toISOString()
+                })
+            );
+
+
+            showProfileMessage(
+                "✓ Profile updated successfully!"
+            );
+
+
+            console.log(
+                "AKSH AI profile saved to backend."
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Profile save failed:",
+                error
+            );
+
+            showProfileMessage(
+                error.message ||
+                "Failed to save profile.",
+                "error"
+            );
+
+        } finally {
+
+            if (profileSaveBtn) {
+
+                profileSaveBtn.disabled = false;
+
+                profileSaveBtn.textContent =
+                    profileSaveBtn.dataset.originalText ||
+                    "Save Profile";
+            }
+        }
+    }
+
+
+    profileBtn?.addEventListener(
+        "click",
+        openProfile
+    );
+
+
+    profileClose?.addEventListener(
+        "click",
+        closeProfile
+    );
+
+
+    profileOverlay.addEventListener(
+        "click",
+        (event) => {
+
+            if (
+                event.target ===
+                profileOverlay
+            ) {
+
+                closeProfile();
+            }
+        }
+    );
+
+
+    profileSaveBtn?.addEventListener(
+        "click",
+        saveProfile
+    );
+
+
+    document.addEventListener(
+        "keydown",
+        (event) => {
+
+            if (
+                event.key === "Escape" &&
+                !profileOverlay.classList.contains(
+                    "hidden"
+                )
+            ) {
+
+                closeProfile();
+            }
+        }
+    );
+
+
+    window.addEventListener(
+        "aksh-ai-auth-ready",
+        (event) => {
+
+            const user =
+                event.detail?.user;
+
+            if (user) {
+                updateProfileAvatar(
+                    user.name || "A"
+                );
+            }
+
+            if (
+                !profileOverlay.classList.contains(
+                    "hidden"
+                )
+            ) {
+
+                loadProfile();
+            }
+        }
+    );
+
+
+    console.log(
+        "AKSH AI Profile UI initialized."
+    );
+
+})();
+
+/* =========================================================
+   AKSH AI SETTINGS UI
+   ========================================================= */
+(function initAKSHAISettings() {
+    const settingsOverlay =
+        document.getElementById("settingsOverlay");
+    const settingsBtn =
+        document.getElementById("settingsBtn");
+    const settingsClose =
+        document.getElementById("settingsClose");
+    const settingsDarkMode =
+        document.getElementById("settingsDarkMode");
+    const settingsNotifications =
+        document.getElementById("settingsNotifications");
+    const settingsSaveBtn =
+        document.getElementById("settingsSaveBtn");
+    const settingsSaveMessage =
+        document.getElementById("settingsSaveMessage");
+    const settingsLogoutBtn =
+        document.getElementById("settingsLogoutBtn");
+    const settingsUserName =
+        document.getElementById("settingsUserName");
+    const settingsUserEmail =
+        document.getElementById("settingsUserEmail");
+    const settingsAvatar =
+        document.getElementById("settingsAvatar");
+
+    function getToken() {
+        return localStorage.getItem("aksh_ai_access_token");
+    }
+
+    function updateSettingsProfile() {
+        const user =
+            window.AKSHAIAuth?.getUser?.();
+
+        const name =
+            user?.name ||
+            user?.fullname ||
+            user?.full_name ||
+            user?.email ||
+            "User";
+
+        const email =
+            user?.email ||
+            "Not signed in";
+
+        if (settingsUserName) {
+            settingsUserName.textContent = name;
+        }
+
+        if (settingsUserEmail) {
+            settingsUserEmail.textContent = email;
+        }
+
+        if (settingsAvatar) {
+            settingsAvatar.textContent =
+                name.charAt(0).toUpperCase();
+        }
+    }
+
+    if (!settingsOverlay) {
+        console.warn("AKSH AI Settings UI not found.");
+        return;
+    }
+
+    async function loadPreferences() {
+        const token = getToken();
+
+        if (!token) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `${API_URL}/auth/preferences`,
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Preferences load failed: ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+            const preferences = data.preferences || {};
+
+            const theme =
+                preferences.theme || "dark";
+
+            const notifications =
+                preferences.notifications !== false;
+
+            if (settingsDarkMode) {
+                settingsDarkMode.checked =
+                    theme === "dark";
+            }
+
+            if (settingsNotifications) {
+                settingsNotifications.checked =
+                    notifications;
+            }
+
+            document.body.classList.toggle(
+                "settings-dark-mode",
+                theme === "dark"
+            );
+
+            localStorage.setItem(
+                "aksh_ai_dark_mode",
+                String(theme === "dark")
+            );
+
+            localStorage.setItem(
+                "aksh_ai_notifications",
+                String(notifications)
+            );
+
+            console.log(
+                "AKSH AI preferences loaded.",
+                preferences
+            );
+        } catch (error) {
+            console.warn(
+                "Could not load preferences:",
+                error
+            );
+        }
+    }
+
+    function openSettings() {
+        updateSettingsProfile();
+
+        settingsOverlay.classList.remove("hidden");
+
+        loadPreferences();
+    }
+
+    function closeSettings() {
+        settingsOverlay.classList.add("hidden");
+    }
+
+    function showSaveMessage(
+        message,
+        type = "success"
+    ) {
+        if (!settingsSaveMessage) return;
+
+        settingsSaveMessage.textContent = message;
+
+        settingsSaveMessage.className =
+            `settings-save-message ${type}`;
+
+        setTimeout(() => {
+            settingsSaveMessage.textContent = "";
+            settingsSaveMessage.className =
+                "settings-save-message";
+        }, 2500);
+    }
+
+    settingsBtn?.addEventListener(
+        "click",
+        openSettings
+    );
+
+    window.addEventListener(
+        "aksh-ai-auth-ready",
+        () => {
+            updateSettingsProfile();
+        }
+    );
+
+    window.addEventListener(
+        "aksh-ai-profile-updated",
+        updateSettingsProfile
+    );
+
+    settingsClose?.addEventListener(
+        "click",
+        closeSettings
+    );
+
+    settingsOverlay.addEventListener(
+        "click",
+        (event) => {
+            if (event.target === settingsOverlay) {
+                closeSettings();
+            }
+        }
+    );
+
+    document.addEventListener(
+        "keydown",
+        (event) => {
+            if (
+                event.key === "Escape" &&
+                !settingsOverlay.classList.contains(
+                    "hidden"
+                )
+            ) {
+                closeSettings();
+            }
+        }
+    );
+
+    settingsSaveBtn?.addEventListener(
+        "click",
+        async () => {
+            const token = getToken();
+
+            const darkMode =
+                Boolean(settingsDarkMode?.checked);
+
+            const notifications =
+                settingsNotifications
+                    ? Boolean(
+                        settingsNotifications.checked
+                    )
+                    : true;
+
+            if (!token) {
+                showSaveMessage(
+                    "Please login first.",
+                    "error"
+                );
+                return;
+            }
+
+            const originalText =
+                settingsSaveBtn.textContent;
+
+            settingsSaveBtn.disabled = true;
+            settingsSaveBtn.textContent =
+                "Saving...";
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/auth/preferences`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                            Authorization:
+                                `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            theme: darkMode
+                                ? "dark"
+                                : "light",
+                            notifications:
+                                notifications,
+                            email_notifications:
+                                notifications
+                        })
+                    }
+                );
+
+                const data =
+                    await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.detail ||
+                        "Failed to save preferences."
+                    );
+                }
+
+                localStorage.setItem(
+                    "aksh_ai_dark_mode",
+                    String(darkMode)
+                );
+
+                localStorage.setItem(
+                    "aksh_ai_notifications",
+                    String(notifications)
+                );
+
+                document.body.classList.toggle(
+                    "settings-dark-mode",
+                    darkMode
+                );
+
+                showSaveMessage(
+                    "✓ Settings saved successfully."
+                );
+
+                console.log(
+                    "AKSH AI preferences saved.",
+                    data.preferences
+                );
+            } catch (error) {
+                console.error(
+                    "Settings save error:",
+                    error
+                );
+
+                showSaveMessage(
+                    error.message ||
+                    "Could not save settings.",
+                    "error"
+                );
+            } finally {
+                settingsSaveBtn.disabled = false;
+                settingsSaveBtn.textContent =
+                    originalText || "Save Settings";
+            }
+        }
+    );
+
+    settingsLogoutBtn?.addEventListener(
+        "click",
+        async () => {
+            try {
+                await window.AKSHAIAuth?.logout();
+            } catch (error) {
+                console.warn(
+                    "Settings logout warning:",
+                    error
+                );
+            }
+
+            localStorage.removeItem(
+                "aksh_ai_access_token"
+            );
+
+            localStorage.removeItem(
+                "aksh_ai_user"
+            );
+
+            localStorage.removeItem(
+                "aksh_ai_dark_mode"
+            );
+
+            localStorage.removeItem(
+                "aksh_ai_notifications"
+            );
+
+            document.body.classList.remove(
+                "settings-dark-mode"
+            );
+
+            closeSettings();
+
+            window.location.href =
+                "index.html?auth=login";
+        }
+    );
+
+    const savedDarkMode =
+        localStorage.getItem(
+            "aksh_ai_dark_mode"
+        ) === "true";
+
+    document.body.classList.toggle(
+        "settings-dark-mode",
+        savedDarkMode
+    );
+
+    console.log(
+        "AKSH AI Settings UI initialized."
+    );
+})();
 
 /* =========================================================
    AKSH AI AUTH UI
@@ -2747,6 +3798,13 @@ window.AKSHAIAuth = {
     loginBtn?.addEventListener("click", () => {
         openAuth("login");
     });
+
+    if (
+        new URLSearchParams(window.location.search).get("auth") === "login" &&
+        !window.AKSHAIAuth.getUser()
+    ) {
+        openAuth("login");
+    }
 
     signupBtn?.addEventListener("click", () => {
         openAuth("signup");
@@ -2901,6 +3959,8 @@ window.AKSHAIAuth = {
         updateAuthUI(null);
 
         console.log("AKSH AI logout successful");
+
+        window.location.href = "index.html?auth=login";
     });
 
     window.addEventListener(

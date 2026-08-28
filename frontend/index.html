@@ -183,7 +183,333 @@
             </div>
         </div>
 
-        <!-- AUTH HEADER ACTION -->
+
+        <!-- =====================================================
+             AKSH AI SETTINGS
+             ===================================================== -->
+        <!-- =====================================================
+             AKSH AI PROFILE
+             ===================================================== -->
+        <div class="profile-overlay hidden" id="profileOverlay">
+            <div class="profile-modal">
+
+                <button
+                    type="button"
+                    class="profile-close"
+                    id="profileClose"
+                    aria-label="Close">
+                    ×
+                </button>
+
+                <div class="profile-header">
+                    <div class="profile-avatar-large" id="profileAvatarLarge">
+                        A
+                    </div>
+
+                    <div>
+                        <p class="eyebrow">YOUR ACCOUNT</p>
+                        <h2>Profile</h2>
+                        <p>Manage your AKSH AI career profile.</p>
+                    </div>
+                </div>
+
+                <div class="profile-content">
+
+                    <div class="profile-card">
+                        <div class="profile-card-header">
+                            <div>
+                                <h3>👤 Personal Information</h3>
+                                <p>Keep your basic account details updated.</p>
+                            </div>
+                        </div>
+
+                        <div class="profile-grid">
+
+                            <div class="profile-field">
+                                <label for="profileName">Full Name</label>
+                                <input
+                                    type="text"
+                                    id="profileName"
+                                    placeholder="Your full name">
+                            </div>
+
+                            <div class="profile-field">
+                                <label for="profileEmail">Email</label>
+                                <input
+                                    type="email"
+                                    id="profileEmail"
+                                    placeholder="you@example.com"
+                                    readonly>
+                            </div>
+
+                            <div class="profile-field">
+                                <label for="profilePhone">Phone</label>
+                                <input
+                                    type="tel"
+                                    id="profilePhone"
+                                    placeholder="Your phone number">
+                            </div>
+
+                            <div class="profile-field">
+                                <label for="profileRole">Target Job Role</label>
+                                <input
+                                    type="text"
+                                    id="profileRole"
+                                    placeholder="e.g. Python Developer">
+                            </div>
+
+                            <div class="profile-field">
+                                <label for="profileExperience">
+                                    Experience Level
+                                </label>
+                                <select id="profileExperience">
+                                    <option value="">Select experience</option>
+                                    <option value="student">Student / Fresher</option>
+                                    <option value="0-1">0–1 Years</option>
+                                    <option value="1-3">1–3 Years</option>
+                                    <option value="3-5">3–5 Years</option>
+                                    <option value="5+">5+ Years</option>
+                                </select>
+                            </div>
+
+                            <div class="profile-field">
+                                <label for="profileSkills">Key Skills</label>
+                                <input
+                                    type="text"
+                                    id="profileSkills"
+                                    placeholder="Python, SQL, FastAPI">
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="profile-card">
+                        <div class="profile-card-header">
+                            <div>
+                                <h3>🎯 Career Goal</h3>
+                                <p>
+                                    This information can help personalize
+                                    future resume analysis.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="profile-field">
+                            <label for="profileBio">Professional Summary</label>
+                            <textarea
+                                id="profileBio"
+                                rows="4"
+                                placeholder="Tell AKSH AI about your career goals..."></textarea>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="profile-footer">
+                    <span id="profileSaveMessage"></span>
+
+                    <button
+                        type="button"
+                        class="profile-save-btn"
+                        id="profileSaveBtn">
+                        Save Profile
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="settings-overlay hidden" id="settingsOverlay">
+            <div class="settings-modal">
+
+                <button
+                    type="button"
+                    class="settings-close"
+                    id="settingsClose"
+                    aria-label="Close settings">
+                    ×
+                </button>
+
+                <div class="settings-header">
+                    <div class="settings-icon">⚙️</div>
+                    <div>
+                        <p class="eyebrow">AKSH AI</p>
+                        <h2>Settings</h2>
+                        <p>Manage your account and preferences.</p>
+                    </div>
+                </div>
+
+                <div class="settings-body">
+
+                    <section class="settings-card">
+                        <div class="settings-card-header">
+                            <div>
+                                <h3>👤 Profile</h3>
+                                <p>Your account information</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-profile">
+                            <div class="settings-avatar" id="settingsAvatar">A</div>
+
+                            <div class="settings-profile-info">
+                                <strong id="settingsUserName">User</strong>
+                                <span id="settingsUserEmail">Not signed in</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-card">
+                        <div class="settings-card-header">
+                            <div>
+                                <h3>🎨 Appearance</h3>
+                                <p>Customize your AKSH AI experience</p>
+                            </div>
+                        </div>
+
+                        <label class="settings-row">
+                            <span>
+                                <strong>Dark Interface</strong>
+                                <small>Use the premium dark AKSH AI interface</small>
+                            </span>
+
+                            <input
+                                type="checkbox"
+                                id="settingsDarkMode"
+                                checked>
+                        </label>
+                    </section>
+
+                    <section class="settings-card">
+                        <div class="settings-card-header">
+                            <div>
+                                <h3>🔔 Notifications</h3>
+                                <p>Control application notifications</p>
+                            </div>
+                        </div>
+
+                        <label class="settings-row">
+                            <span>
+                                <strong>Analysis Notifications</strong>
+                                <small>Show notifications after resume analysis</small>
+                            </span>
+
+                            <input
+                                type="checkbox"
+                                id="settingsNotifications"
+                                checked>
+                        </label>
+                    </section>
+
+                    <section class="settings-card">
+                        <div class="settings-card-header">
+                            <div>
+                                <h3>🔐 Account</h3>
+                                <p>Security and session controls</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-password-box">
+                            <div class="settings-password-field">
+                                <label for="settingsCurrentPassword">
+                                    Current Password
+                                </label>
+                                <div class="settings-password-input">
+                                    <input
+                                        type="password"
+                                        id="settingsCurrentPassword"
+                                        placeholder="Enter current password"
+                                        autocomplete="current-password">
+                                    <button
+                                        type="button"
+                                        class="settings-password-toggle"
+                                        data-target="settingsCurrentPassword"
+                                        aria-label="Show current password">
+                                        👁️
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="settings-password-field">
+                                <label for="settingsNewPassword">
+                                    New Password
+                                </label>
+                                <div class="settings-password-input">
+                                    <input
+                                        type="password"
+                                        id="settingsNewPassword"
+                                        placeholder="Enter new password"
+                                        autocomplete="new-password">
+                                    <button
+                                        type="button"
+                                        class="settings-password-toggle"
+                                        data-target="settingsNewPassword"
+                                        aria-label="Show new password">
+                                        👁️
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="settings-password-field">
+                                <label for="settingsConfirmPassword">
+                                    Confirm New Password
+                                </label>
+                                <div class="settings-password-input">
+                                    <input
+                                        type="password"
+                                        id="settingsConfirmPassword"
+                                        placeholder="Re-enter new password"
+                                        autocomplete="new-password">
+                                    <button
+                                        type="button"
+                                        class="settings-password-toggle"
+                                        data-target="settingsConfirmPassword"
+                                        aria-label="Show confirm password">
+                                        👁️
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                id="settingsPasswordMessage"
+                                class="settings-password-message">
+                            </div>
+
+                            <button
+                                type="button"
+                                class="settings-change-password-btn"
+                                id="settingsChangePasswordBtn">
+                                🔑 Change Password
+                            </button>
+                        </div>
+
+                        <div class="settings-account-divider"></div>
+
+                        <button
+                            type="button"
+                            class="settings-action-btn"
+                            id="settingsLogoutBtn">
+                            🚪 Logout
+                        </button>
+                    </section>
+
+                </div>
+
+                <div class="settings-footer">
+                    <span id="settingsSaveMessage"></span>
+
+                    <button
+                        type="button"
+                        class="settings-save-btn"
+                        id="settingsSaveBtn">
+                        Save Changes
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+                <!-- AUTH HEADER ACTION -->
         <div class="auth-user-bar" id="authUserBar">
 
             <div
@@ -220,6 +546,20 @@
                     id="authUserName">
                     User
                 </span>
+
+                <button
+                    type="button"
+                    class="auth-nav-btn"
+                    id="profileBtn">
+                    👤 Profile
+                </button>
+
+                <button
+                    type="button"
+                    class="auth-nav-btn"
+                    id="settingsBtn">
+                    ⚙️ Settings
+                </button>
 
                 <button
                     type="button"
@@ -269,6 +609,41 @@
                     </div>
                 </div>
 
+            </section>
+
+            <!-- =====================================================
+                 AKSH AI DASHBOARD
+                 ===================================================== -->
+            <section id="dashboard" class="dashboard-section">
+                <div class="dashboard-header">
+                    <div>
+                        <p class="eyebrow">CAREER DASHBOARD</p>
+                        <h2>Your Career Intelligence</h2>
+                        <p>Track your resume analysis performance and progress.</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-stats">
+                    <div class="dashboard-stat-card">
+                        <span>Total Analyses</span>
+                        <strong id="dashboardTotalAnalyses">0</strong>
+                    </div>
+
+                    <div class="dashboard-stat-card">
+                        <span>Average ATS Score</span>
+                        <strong id="dashboardAverageScore">0</strong>
+                    </div>
+
+                    <div class="dashboard-stat-card">
+                        <span>Best ATS Score</span>
+                        <strong id="dashboardBestScore">0</strong>
+                    </div>
+
+                    <div class="dashboard-stat-card">
+                        <span>Latest ATS Score</span>
+                        <strong id="dashboardLatestScore">0</strong>
+                    </div>
+                </div>
             </section>
 
             <section class="job-match-card" id="jobMatch">

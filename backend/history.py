@@ -1,6 +1,6 @@
 from pathlib import Path
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 HISTORY_FILE = Path("uploads/history.json")
@@ -54,7 +54,7 @@ def create_history_record(
     user_email=None
 ):
     return {
-        "id": datetime.now().strftime(
+        "id": datetime.now(timezone.utc).strftime(
             "%Y%m%d%H%M%S%f"
         ),
 
@@ -91,7 +91,7 @@ def create_history_record(
 
         "suggestions": suggestions,
 
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
 
 
