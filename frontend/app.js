@@ -4,7 +4,7 @@ const API_URL =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1"
         ? "http://127.0.0.1:8000"
-        : "https://ai-resume-analyzer-api-gr6p.onrender.com";
+        : "https://aksh-ai-backend.onrender.com";
 
 const resumeFile = document.getElementById("resumeFile");
 let selectedFile = null;
