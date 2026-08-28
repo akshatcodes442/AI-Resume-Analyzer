@@ -1,0 +1,7 @@
+{
+  "name": "ai-resume-analyzer",
+  "compatibility_date": "2026-08-28",
+  "assets": {
+    "directory": "./frontend"
+  }
+}
