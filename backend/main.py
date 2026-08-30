@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -29,30 +29,20 @@ app = FastAPI(
 )
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-        "https://ai-resume-analyzer.as3042157.workers.dev",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-from backend.history import (
-    save_history,
-    load_history,
-    create_history_record,
-    delete_history_record,
-    clear_history
-)
-
 # =========================
-# AUTHENTICATION DEPENDENCY
+# AUTH REQUEST MODELS
 # =========================
+
+class SignupRequest(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
 
 security = HTTPBearer()
 
@@ -86,6 +76,151 @@ def get_current_user(
         )
 
     return user
+
+# =========================
+# AUTH ROUTES
+# =========================
+
+@app.post("/auth/signup")
+def auth_signup(data: SignupRequest):
+    email = str(data.email).strip().lower()
+
+    existing_user = find_user_by_email(email)
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="An account with this email already exists."
+        )
+
+    if len(data.password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 6 characters."
+        )
+
+    user = {
+        "name": data.name.strip(),
+        "email": email,
+        "hashed_password": hash_password(data.password),
+        "phone": "",
+        "role": "",
+        "experience": "",
+        "skills": "",
+        "bio": "",
+        "theme": "dark",
+        "notifications": True,
+        "email_notifications": True
+    }
+
+    users = load_users()
+    users.append(user)
+    save_users(users)
+
+    token = create_access_token({
+        "sub": email
+    })
+
+    safe_user = {
+        key: value
+        for key, value in user.items()
+        if key != "hashed_password"
+    }
+
+    return {
+        "status": "success",
+        "message": "Account created successfully.",
+        "access_token": token,
+        "token_type": "bearer",
+        "user": safe_user
+    }
+
+
+@app.post("/auth/login")
+def auth_login(data: LoginRequest):
+    email = str(data.email).strip().lower()
+
+    user = find_user_by_email(email)
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password."
+        )
+
+    try:
+        password_valid = verify_password(
+            data.password,
+            user.get("hashed_password", "")
+        )
+    except Exception:
+        password_valid = False
+
+    if not password_valid:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password."
+        )
+
+    token = create_access_token({
+        "sub": email
+    })
+
+    safe_user = {
+        key: value
+        for key, value in user.items()
+        if key != "hashed_password"
+    }
+
+    return {
+        "status": "success",
+        "message": "Login successful.",
+        "access_token": token,
+        "token_type": "bearer",
+        "user": safe_user
+    }
+
+
+@app.get("/auth/me")
+def auth_me(current_user=Depends(get_current_user)):
+    safe_user = {
+        key: value
+        for key, value in current_user.items()
+        if key != "hashed_password"
+    }
+
+    return {
+        "status": "success",
+        "user": safe_user
+    }
+
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "https://ai-resume-analyzer.as3042157.workers.dev",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+from backend.history import (
+    save_history,
+    load_history,
+    create_history_record,
+    delete_history_record,
+    clear_history
+)
+
+# =========================
+# AUTHENTICATION DEPENDENCY
+# =========================
+
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -222,7 +357,7 @@ def clear_all_history(
     }
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 
@@ -717,10 +852,24 @@ class JobMatchRequest(BaseModel):
 @app.post("/job-match")
 def job_match(request: JobMatchRequest):
 
+    import re
+
     resume_text = request.resume_text.lower()
     job_description = request.job_description.lower()
 
-    # Skill aliases
+    # ---------------------------------------------------------
+    # ACCURATE SKILL DETECTION
+    # ---------------------------------------------------------
+    # Use word boundaries instead of simple substring matching.
+    # This prevents short aliases such as "ts", "js", "c" and
+    # "api" from creating false-positive skill matches.
+    def skill_present(alias, text):
+        pattern = r"(?<!\w)" + re.escape(alias.lower()) + r"(?!\w)"
+        return re.search(pattern, text) is not None
+
+    # ---------------------------------------------------------
+    # SKILL GROUPS
+    # ---------------------------------------------------------
     skill_groups = {
         "python": ["python", "python3"],
         "java": ["java programming", "core java", "java developer"],
@@ -763,7 +912,6 @@ def job_match(request: JobMatchRequest):
         ],
         "artificial intelligence": [
             "artificial intelligence",
-            "artificial intelligence",
             "ai"
         ],
         "api": [
@@ -790,63 +938,84 @@ def job_match(request: JobMatchRequest):
         ],
     }
 
+    # ---------------------------------------------------------
+    # DETECT REQUIRED SKILLS
+    # ---------------------------------------------------------
     required_skills = []
 
-    # Find skills required by job description
     for skill, aliases in skill_groups.items():
-
-        if any(alias in job_description for alias in aliases):
+        if any(skill_present(alias, job_description) for alias in aliases):
             required_skills.append(skill)
+
+    # REST API already includes API.
+    # Do not count both as independent technical requirements.
+    if "rest api" in required_skills and "api" in required_skills:
+        required_skills.remove("api")
 
     matching_skills = []
     missing_skills = []
 
-    # Compare resume with required skills
     for skill in required_skills:
-
         aliases = skill_groups[skill]
 
-        if any(alias in resume_text for alias in aliases):
+        if any(skill_present(alias, resume_text) for alias in aliases):
             matching_skills.append(skill)
         else:
             missing_skills.append(skill)
 
-    # If no technical skills were detected,
-    # perform a basic keyword comparison
+    # ---------------------------------------------------------
+    # FALLBACK FOR JOB DESCRIPTIONS WITHOUT KNOWN TECH SKILLS
+    # ---------------------------------------------------------
     if not required_skills:
 
-        jd_words = set(
-            word.strip(".,:;()[]{}")
-            for word in job_description.split()
-            if len(word) > 3
-        )
+        stop_words = {
+            "this", "that", "with", "from", "have", "will",
+            "your", "their", "they", "them", "should",
+            "would", "could", "into", "about", "looking",
+            "candidate", "years", "year", "work", "working",
+            "team", "using", "role", "must", "able"
+        }
 
-        resume_words = set(
-            word.strip(".,:;()[]{}")
+        jd_words = {
+            word.strip(".,:;()[]{}!?")
+            for word in job_description.split()
+            if len(word.strip(".,:;()[]{}!?")) > 3
+            and word.strip(".,:;()[]{}!?") not in stop_words
+        }
+
+        resume_words = {
+            word.strip(".,:;()[]{}!?")
             for word in resume_text.split()
-            if len(word) > 3
-        )
+            if len(word.strip(".,:;()[]{}!?")) > 3
+            and word.strip(".,:;()[]{}!?") not in stop_words
+        }
 
         common_words = jd_words.intersection(resume_words)
 
         match_score = min(
-            round((len(common_words) / max(len(jd_words), 1)) * 100),
+            round(
+                (len(common_words) / max(len(jd_words), 1)) * 100
+            ),
             100
         )
 
-        rating = (
-            "Excellent Match" if match_score >= 80
-            else "Good Match" if match_score >= 60
-            else "Moderate Match" if match_score >= 40
-            else "Low Match"
-        )
+        if match_score >= 80:
+            rating = "Excellent Match"
+        elif match_score >= 65:
+            rating = "Strong Match"
+        elif match_score >= 50:
+            rating = "Good Match"
+        elif match_score >= 35:
+            rating = "Moderate Match"
+        else:
+            rating = "Low Match"
 
         return {
             "status": "success",
             "match_score": match_score,
             "rating": rating,
             "required_skills": [],
-            "matching_skills": list(common_words)[:20],
+            "matching_skills": sorted(list(common_words))[:20],
             "missing_skills": [],
             "recommendations": [
                 "No specific technical skills were detected in the job description.",
@@ -854,107 +1023,318 @@ def job_match(request: JobMatchRequest):
             ]
         }
 
-    # Calculate realistic weighted Job Match score
+    # ---------------------------------------------------------
+    # IMPROVED JOB MATCH SCORING
+    # ---------------------------------------------------------
+
+    # Technical Skills — 50%
     skill_score = (
         (len(matching_skills) / len(required_skills)) * 50
-        if required_skills else 0
+        if required_skills
+        else 0
     )
 
-    # Experience relevance
-    experience_keywords = [
-        "experience",
-        "developer",
-        "development",
-        "project",
-        "application",
-        "software",
-        "web",
-        "programming",
-        "database",
-        "api",
-    ]
+    # ---------------------------------------------------------
+    # EXPERIENCE / RESPONSIBILITY RELEVANCE — 20%
+    # ---------------------------------------------------------
 
-    experience_matches = sum(
-        1 for keyword in experience_keywords
-        if keyword in resume_text and keyword in job_description
-    )
+    experience_groups = {
+        "development": [
+            "developer",
+            "development",
+            "developed",
+            "software development",
+            "application development",
+        ],
+        "programming": [
+            "programming",
+            "coding",
+            "software",
+        ],
+        "projects": [
+            "project",
+            "projects",
+            "built",
+            "created",
+            "implemented",
+        ],
+        "web": [
+            "web",
+            "website",
+            "web application",
+            "frontend",
+            "backend",
+        ],
+        "database": [
+            "database",
+            "sql",
+            "mysql",
+            "postgresql",
+            "mongodb",
+        ],
+        "api": [
+            "api",
+            "rest api",
+            "restful api",
+            "integration",
+        ],
+        "testing": [
+            "testing",
+            "test",
+            "debugging",
+            "quality assurance",
+        ],
+        "deployment": [
+            "deployment",
+            "deployed",
+            "production",
+            "hosting",
+            "cloud",
+        ],
+        "teamwork": [
+            "team",
+            "teamwork",
+            "collaboration",
+            "collaborate",
+        ],
+    }
 
-    experience_score = min(
-        (experience_matches / 5) * 20,
-        20
-    )
+    experience_required = []
+    experience_matched = []
 
-    # Education relevance
-    education_keywords = [
-        "mca",
-        "bca",
-        "computer science",
-        "computer applications",
-        "engineering",
-        "degree",
-        "diploma",
-    ]
+    for group, aliases in experience_groups.items():
+        if any(skill_present(alias, job_description) for alias in aliases):
+            experience_required.append(group)
 
-    education_matches = sum(
-        1 for keyword in education_keywords
-        if keyword in resume_text and keyword in job_description
-    )
+            if any(skill_present(alias, resume_text) for alias in aliases):
+                experience_matched.append(group)
 
-    education_score = min(
-        (education_matches / 2) * 10,
-        10
-    )
+    if experience_required:
+        experience_score = (
+            len(experience_matched) / len(experience_required)
+        ) * 20
+    else:
+        experience_score = 10
 
-    # Important job-description keywords
-    job_keywords = [
-        "authentication",
-        "admin dashboard",
-        "database",
-        "responsive",
-        "rest api",
-        "api",
-        "git",
-        "github",
-        "problem-solving",
-        "communication",
-        "teamwork",
-        "machine learning",
-        "artificial intelligence",
-    ]
+    # ---------------------------------------------------------
+    # EDUCATION RELEVANCE — 10%
+    # ---------------------------------------------------------
 
-    keyword_matches = sum(
-        1 for keyword in job_keywords
-        if keyword in job_description and keyword in resume_text
-    )
+    education_groups = {
+        "computer science": [
+            "computer science",
+            "computer applications",
+            "computer engineering",
+        ],
+        "bca": ["bca"],
+        "mca": ["mca"],
+        "engineering": [
+            "engineering",
+            "b.tech",
+            "btech",
+            "m.tech",
+            "mtech",
+        ],
+        "degree": [
+            "degree",
+            "bachelor",
+            "master",
+            "graduation",
+        ],
+        "diploma": [
+            "diploma",
+            "pgdca",
+        ],
+    }
 
-    keyword_score = min(
-        (keyword_matches / 5) * 10,
-        10
-    )
+    education_required = []
+    education_matched = []
 
-    # Project / responsibility relevance
-    project_keywords = [
-        "project",
-        "developed",
-        "implemented",
-        "built",
-        "created",
-        "responsive",
-        "authentication",
-        "dashboard",
-        "database",
-        "crud",
-    ]
+    for group, aliases in education_groups.items():
+        if any(skill_present(alias, job_description) for alias in aliases):
+            education_required.append(group)
 
-    project_matches = sum(
-        1 for keyword in project_keywords
-        if keyword in resume_text and keyword in job_description
-    )
+            if any(skill_present(alias, resume_text) for alias in aliases):
+                education_matched.append(group)
 
-    project_score = min(
-        (project_matches / 5) * 10,
-        10
-    )
+    if education_required:
+        education_score = (
+            len(education_matched) / len(education_required)
+        ) * 10
+    else:
+        education_score = 5
+
+    # ---------------------------------------------------------
+    # JD KEYWORD ALIGNMENT — 10%
+    # ---------------------------------------------------------
+
+    keyword_groups = {
+        "authentication": [
+            "authentication",
+            "auth",
+            "login",
+            "signup",
+            "authorization",
+        ],
+        "dashboard": [
+            "dashboard",
+            "admin dashboard",
+        ],
+        "database": [
+            "database",
+            "sql",
+            "mysql",
+            "postgresql",
+            "mongodb",
+        ],
+        "responsive": [
+            "responsive",
+            "mobile friendly",
+            "mobile-friendly",
+        ],
+        "api": [
+            "rest api",
+            "restful api",
+            "api",
+        ],
+        "git": [
+            "git",
+            "github",
+            "gitlab",
+            "version control",
+        ],
+        "problem solving": [
+            "problem-solving",
+            "problem solving",
+            "analytical",
+            "analytical skills",
+        ],
+        "communication": [
+            "communication",
+            "communication skills",
+        ],
+        "teamwork": [
+            "teamwork",
+            "collaboration",
+            "collaborative",
+        ],
+        "ai": [
+            "machine learning",
+            "artificial intelligence",
+            "ai",
+        ],
+        "testing": [
+            "testing",
+            "unit testing",
+            "software testing",
+        ],
+        "deployment": [
+            "deployment",
+            "deployed",
+            "production",
+        ],
+        "cloud": [
+            "cloud",
+            "aws",
+            "azure",
+            "gcp",
+        ],
+        "security": [
+            "security",
+            "cybersecurity",
+        ],
+    }
+
+    keyword_required = []
+    keyword_matched = []
+
+    for group, aliases in keyword_groups.items():
+        if any(skill_present(alias, job_description) for alias in aliases):
+            keyword_required.append(group)
+
+            if any(skill_present(alias, resume_text) for alias in aliases):
+                keyword_matched.append(group)
+
+    if keyword_required:
+        keyword_score = (
+            len(keyword_matched) / len(keyword_required)
+        ) * 10
+    else:
+        keyword_score = 5
+
+    # ---------------------------------------------------------
+    # PROJECT / RESPONSIBILITY RELEVANCE — 10%
+    # ---------------------------------------------------------
+
+    project_groups = {
+        "projects": [
+            "project",
+            "projects",
+        ],
+        "development": [
+            "developed",
+            "built",
+            "created",
+            "implemented",
+        ],
+        "application": [
+            "application",
+            "web application",
+            "software",
+        ],
+        "dashboard": [
+            "dashboard",
+            "admin dashboard",
+        ],
+        "database": [
+            "database",
+            "sql",
+            "mysql",
+            "mongodb",
+        ],
+        "authentication": [
+            "authentication",
+            "login",
+            "signup",
+            "authorization",
+        ],
+        "api": [
+            "api",
+            "rest api",
+            "restful api",
+        ],
+        "deployment": [
+            "deployment",
+            "deployed",
+            "production",
+            "hosting",
+        ],
+        "integration": [
+            "integration",
+            "integrated",
+        ],
+    }
+
+    project_required = []
+    project_matched = []
+
+    for group, aliases in project_groups.items():
+        if any(skill_present(alias, job_description) for alias in aliases):
+            project_required.append(group)
+
+            if any(skill_present(alias, resume_text) for alias in aliases):
+                project_matched.append(group)
+
+    if project_required:
+        project_score = (
+            len(project_matched) / len(project_required)
+        ) * 10
+    else:
+        project_score = 5
+
+    # ---------------------------------------------------------
+    # FINAL SCORE
+    # ---------------------------------------------------------
 
     match_score = round(
         skill_score
@@ -964,7 +1344,14 @@ def job_match(request: JobMatchRequest):
         + project_score
     )
 
-    match_score = min(max(match_score, 0), 100)
+    match_score = min(
+        max(match_score, 0),
+        100
+    )
+
+    # ---------------------------------------------------------
+    # RATING
+    # ---------------------------------------------------------
 
     if match_score >= 85:
         rating = "Excellent Match"
@@ -976,6 +1363,10 @@ def job_match(request: JobMatchRequest):
         rating = "Moderate Match"
     else:
         rating = "Low Match"
+
+    # ---------------------------------------------------------
+    # RECOMMENDATIONS
+    # ---------------------------------------------------------
 
     recommendations = []
 
@@ -1021,187 +1412,10 @@ def job_match(request: JobMatchRequest):
     }
 
 
-# =========================
-# AUTHENTICATION
-# =========================
 
-class SignupRequest(BaseModel):
-    name: str
-    email: str
-    password: str
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class ProfileUpdateRequest(BaseModel):
-    name: str = ""
-    phone: str = ""
-    role: str = ""
-    experience: str = ""
-    skills: str = ""
-    bio: str = ""
-
-
-@app.post("/auth/signup")
-def signup(request: SignupRequest):
-
-    name = request.name.strip()
-    email = request.email.strip().lower()
-    password = request.password
-
-    if not name:
-        raise HTTPException(
-            status_code=400,
-            detail="Name is required."
-        )
-
-    if not email or "@" not in email:
-        raise HTTPException(
-            status_code=400,
-            detail="Enter a valid email address."
-        )
-
-    if len(password) < 8:
-        raise HTTPException(
-            status_code=400,
-            detail="Password must be at least 8 characters."
-        )
-
-    if find_user_by_email(email):
-        raise HTTPException(
-            status_code=409,
-            detail="An account with this email already exists."
-        )
-
-    user = {
-        "name": name,
-        "email": email,
-        "hashed_password": hash_password(password)
-    }
-
-    users = load_users()
-    users.append(user)
-    save_users(users)
-
-    token = create_access_token({
-        "sub": email
-    })
-
-    return {
-        "status": "success",
-        "message": "Account created successfully.",
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "name": name,
-            "email": email
-        }
-    }
-
-
-@app.post("/auth/login")
-def login(request: LoginRequest):
-
-    email = request.email.strip().lower()
-
-    user = find_user_by_email(email)
-
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password."
-        )
-
-    if not verify_password(
-        request.password,
-        user["hashed_password"]
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password."
-        )
-
-    token = create_access_token({
-        "sub": email
-    })
-
-    return {
-        "status": "success",
-        "message": "Login successful.",
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "name": user.get("name", ""),
-            "email": user["email"]
-        }
-    }
-
-
-@app.get("/auth/profile")
-def get_profile(current_user=Depends(get_current_user)):
-    return {
-        "status": "success",
-        "profile": {
-            "name": current_user.get("name", ""),
-            "email": current_user.get("email", ""),
-            "phone": current_user.get("phone", ""),
-            "role": current_user.get("role", ""),
-            "experience": current_user.get("experience", ""),
-            "skills": current_user.get("skills", ""),
-            "bio": current_user.get("bio", "")
-        }
-    }
-
-
-@app.put("/auth/profile")
-def update_profile(
-    request: ProfileUpdateRequest,
-    current_user=Depends(get_current_user)
-):
-    users = load_users()
-
-    email = current_user.get("email", "").strip().lower()
-
-    for user in users:
-        if user.get("email", "").strip().lower() == email:
-            user["name"] = request.name.strip()
-            user["phone"] = request.phone.strip()
-            user["role"] = request.role.strip()
-            user["experience"] = request.experience.strip()
-            user["skills"] = request.skills.strip()
-            user["bio"] = request.bio.strip()
-            break
-    else:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found."
-        )
-
-    save_users(users)
-
-    return {
-        "status": "success",
-        "message": "Profile updated successfully.",
-        "profile": {
-            "name": request.name.strip(),
-            "email": email,
-            "phone": request.phone.strip(),
-            "role": request.role.strip(),
-            "experience": request.experience.strip(),
-            "skills": request.skills.strip(),
-            "bio": request.bio.strip()
-        }
-    }
-
-
-
-class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
-
+# ============================================================
+# AKSH AI — SETTINGS / PREFERENCES API
+# ============================================================
 
 class PreferencesUpdateRequest(BaseModel):
     theme: str = "dark"
@@ -1258,6 +1472,83 @@ def change_password(
     }
 
 
+
+class ProfileUpdateRequest(BaseModel):
+    name: str
+    phone: str = ""
+    role: str = ""
+    experience: str = ""
+    skills: str = ""
+    bio: str = ""
+
+
+@app.get("/auth/profile")
+def get_profile(
+    current_user=Depends(get_current_user)
+):
+    email = current_user.get("email", "").strip().lower()
+
+    user = find_user_by_email(email)
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found."
+        )
+
+    return {
+        "status": "success",
+        "profile": {
+            "name": user.get("name", ""),
+            "email": user.get("email", ""),
+            "phone": user.get("phone", ""),
+            "role": user.get("role", ""),
+            "experience": user.get("experience", ""),
+            "skills": user.get("skills", ""),
+            "bio": user.get("bio", "")
+        }
+    }
+
+
+@app.put("/auth/profile")
+def update_profile(
+    request: ProfileUpdateRequest,
+    current_user=Depends(get_current_user)
+):
+    email = current_user.get("email", "").strip().lower()
+
+    users = load_users()
+
+    for user in users:
+        if user.get("email", "").strip().lower() == email:
+            user["name"] = request.name.strip()
+            user["phone"] = request.phone.strip()
+            user["role"] = request.role.strip()
+            user["experience"] = request.experience.strip()
+            user["skills"] = request.skills.strip()
+            user["bio"] = request.bio.strip()
+
+            save_users(users)
+
+            return {
+                "status": "success",
+                "message": "Profile updated successfully.",
+                "profile": {
+                    "name": user["name"],
+                    "email": user.get("email", ""),
+                    "phone": user["phone"],
+                    "role": user["role"],
+                    "experience": user["experience"],
+                    "skills": user["skills"],
+                    "bio": user["bio"]
+                }
+            }
+
+    raise HTTPException(
+        status_code=404,
+        detail="User not found."
+    )
+
 @app.get("/auth/preferences")
 def get_preferences(
     current_user=Depends(get_current_user)
@@ -1290,16 +1581,24 @@ def update_preferences(
         )
 
     users = load_users()
-    email = current_user.get("email", "").strip().lower()
+
+    email = current_user.get(
+        "email", ""
+    ).strip().lower()
 
     for user in users:
-        if user.get("email", "").strip().lower() == email:
+        if user.get(
+            "email", ""
+        ).strip().lower() == email:
+
             user["theme"] = request.theme
             user["notifications"] = request.notifications
             user["email_notifications"] = (
                 request.email_notifications
             )
+
             break
+
     else:
         raise HTTPException(
             status_code=404,
@@ -1317,16 +1616,3 @@ def update_preferences(
             "email_notifications": request.email_notifications
         }
     }
-
-
-@app.get("/auth/me")
-def get_me(current_user=Depends(get_current_user)):
-
-    return {
-        "status": "success",
-        "user": {
-            "name": current_user.get("name", ""),
-            "email": current_user.get("email", "")
-        }
-    }
-
