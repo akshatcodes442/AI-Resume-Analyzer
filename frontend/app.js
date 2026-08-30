@@ -137,6 +137,17 @@ async function analyzeResume() {
 
         displayResults(data);
 
+        // Run dedicated resume improvement analysis.
+        const extractedResumeText =
+            data.resume_text ||
+            data.text ||
+            data.extracted_text ||
+            "";
+
+        if (extractedResumeText.trim()) {
+            fetchResumeImprovement(extractedResumeText);
+        }
+
         // Render premium ATS breakdown.
         if (
             data &&
@@ -161,6 +172,139 @@ async function analyzeResume() {
 
         setLoading(false);
     }
+}
+
+
+
+/* =========================================================
+   RESUME IMPROVEMENT
+   ========================================================= */
+
+async function fetchResumeImprovement(resumeText) {
+
+    if (!resumeText || !resumeText.trim()) {
+        console.warn("No resume text available for improvement analysis.");
+        return null;
+    }
+
+    try {
+
+        const token = getAuthToken();
+
+        if (!token) {
+            console.warn("No auth token available for resume improvement.");
+            return null;
+        }
+
+        const response = await fetch(
+            `${API_URL}/improve-resume`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    resume_text: resumeText
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail || "Resume improvement analysis failed."
+            );
+        }
+
+        window.lastResumeImprovement = data;
+
+        renderResumeImprovement(data);
+
+        return data;
+
+    } catch (error) {
+
+        console.error(
+            "Resume Improvement Error:",
+            error
+        );
+
+        return null;
+    }
+}
+
+
+/* =========================================================
+   RENDER RESUME IMPROVEMENT
+   ========================================================= */
+
+function renderResumeImprovement(data) {
+
+    const container =
+        document.getElementById("suggestions");
+
+    const priority =
+        document.getElementById("suggestionPriority");
+
+    if (!container) {
+        return;
+    }
+
+    const improvements =
+        Array.isArray(data?.improvements)
+            ? data.improvements
+            : [];
+
+    if (priority) {
+
+        // Use the main ATS analysis score as the single
+        // authoritative score for the UI.
+        const masterScore =
+            Number(
+                window.lastAnalysisResult?.ats_score?.score ??
+                window.lastAnalysisResult?.ats_score ??
+                0
+            );
+
+        if (masterScore >= 85) {
+            priority.textContent = "EXCELLENT";
+        } else if (masterScore >= 70) {
+            priority.textContent = "STRONG";
+        } else if (masterScore >= 50) {
+            priority.textContent = "NEEDS IMPROVEMENT";
+        } else {
+            priority.textContent = "HIGH PRIORITY";
+        }
+    }
+
+    if (!improvements.length) {
+
+        container.innerHTML = `
+            <div class="suggestion">
+                <div class="number">✓</div>
+                <div>
+                    Your resume looks strong. No major improvements were detected.
+                </div>
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        improvements.map((item, index) => `
+            <div class="suggestion">
+                <div class="number">
+                    ${index + 1}
+                </div>
+                <div>
+                    ${item}
+                </div>
+            </div>
+        `).join("");
+
 }
 
 
@@ -2306,7 +2450,11 @@ function updateDashboardStats(history) {
     latestEl.textContent = String(latest);
 }
 
+let analysisHistoryRequestId = 0;
+
 async function loadAnalysisHistory() {
+    const requestId = ++analysisHistoryRequestId;
+
     const historyList = document.getElementById("historyList");
     const historyLoading = document.getElementById("historyLoading");
     const historyError = document.getElementById("historyError");
@@ -2342,6 +2490,19 @@ async function loadAnalysisHistory() {
         const history = Array.isArray(data.history)
             ? data.history
             : [];
+
+        // Ignore an older request if a newer history request
+        // has already started. This prevents stale responses
+        // from overwriting the latest dashboard statistics.
+        if (requestId !== analysisHistoryRequestId) {
+            console.warn(
+                "Ignoring stale history response:",
+                requestId,
+                "current:",
+                analysisHistoryRequestId
+            );
+            return;
+        }
 
         window.analysisHistory = history;
         updateDashboardStats(history);
